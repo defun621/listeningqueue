@@ -1277,70 +1277,71 @@ Do not preserve this shape if implementation evidence suggests a simpler boundar
 
 ## 23. First Vertical Slice
 
+The first product slice must prove that a user can actually listen to a podcast.
+
 Input:
 
 ```text
-one YouTube or Bilibili URL
+one public podcast RSS or Atom URL
 ```
 
 Flow:
 
 ```text
-URL
+feed URL
  ↓
-yt-dlp JSON
+fetch and parse feed
  ↓
-normalize to Item
+normalize episodes to Items
  ↓
-simple admission predicate
+simple admission decision
  ↓
-simple placement decision
+insert into Next
  ↓
-Next
+select an episode
  ↓
-print Next
+resolve its enclosure URL
+ ↓
+play audio
 ```
+
+The slice may use a deliberately small local web page with the browser's native
+audio player. It does not need the full v0.1 Web UI.
 
 No:
 
 - SQLite
 - scheduler
-- Web UI
+- `yt-dlp`
 - custom DSL
-- podcast support
+- media download or transcoding
+- production-ready subscription management
 
 This validates:
 
-1. subprocess boundary;
+1. feed fetching and parsing;
 2. external-data normalization;
-3. policy abstraction;
-4. pure `Next` operations.
+3. pure `Next` operations;
+4. direct podcast media resolution;
+5. an end-to-end path that produces audible playback.
 
 ---
 
 ## 24. Milestones
 
-### M0 — Domain
+### M0 — Podcast listening vertical slice
 
-Implement:
+Implement only the domain and delivery pieces needed to listen end to end:
 
-- `Item`
-- `Next`
-- pure queue operations
-- queue invariant tests
+- minimal `Item`
+- minimal pure `Next` operations and invariant tests
+- RSS 2.0 feed fetching and parsing
+- podcast episode normalization
+- enclosure URL resolution
+- a minimal local browser audio player
+- one end-to-end podcast playback smoke test
 
-### M1 — yt-dlp vertical slice
-
-Implement:
-
-- subprocess invocation
-- JSON parsing
-- normalization
-- admission predicate
-- placement decision
-- Next insertion
-
-### M2 — Persistence
+### M1 — Persistence
 
 Implement:
 
@@ -1350,25 +1351,29 @@ Implement:
 - Next ordering
 - playback state
 
-### M3 — Pull subscriptions
+### M2 — Podcast subscriptions
 
 Implement:
 
 - Source model
 - source state
 - scheduler
-- yt-dlp creator/channel enumeration
 - deduplication
+- podcast polling
+- Atom support where practical
+- ETag and Last-Modified where practical
 
-### M4 — Podcast
+### M3 — yt-dlp sources
 
 Implement:
 
-- RSS extension
-- podcast normalization
-- podcast polling
+- subprocess invocation
+- machine-readable JSON parsing
+- video-source normalization
+- YouTube and Bilibili creator/channel enumeration
+- `yt-dlp` media resolution
 
-### M5 — Policy
+### M4 — Policy
 
 Implement:
 
@@ -1378,7 +1383,7 @@ Implement:
 - placement policy
 - manual-order invariants
 
-### M6 — Retention
+### M5 — Retention
 
 Implement:
 
@@ -1387,15 +1392,16 @@ Implement:
 - filtered delete
 - tombstone behavior
 
-### M7 — Playback
+### M6 — Playback
 
 Implement:
 
-- podcast enclosure resolution
-- yt-dlp audio resolution
 - progress persistence
+- completion behavior
+- playback error handling
+- expiring-media refresh where needed
 
-### M8 — Minimal Web UI
+### M7 — Minimal Web UI
 
 Implement:
 
@@ -1405,7 +1411,7 @@ Implement:
 - remove
 - play
 
-### M9 — DSL exploration
+### M8 — DSL exploration
 
 Only after normal Racket APIs stabilize:
 

@@ -69,16 +69,16 @@ replace the lifecycle with user-defined orchestration.
 Build the smallest vertical slice that proves the current milestone. Follow the
 milestone order in `spec.md` unless the task explicitly requires otherwise:
 
-1. Domain values and pure `Next` operations.
-2. `yt-dlp` subprocess/JSON vertical slice.
-3. SQLite persistence, including seen history and stable queue order.
-4. Pull subscriptions and scheduling.
-5. RSS/podcast support.
-6. Reusable admission, placement, and retention predicates.
-7. Retention and tombstone behavior.
-8. Media resolution and playback progress.
-9. Minimal web UI.
-10. DSL exploration only after ordinary Racket APIs stabilize.
+1. An end-to-end podcast slice: RSS to `Next` to audible playback, including
+   only the minimal domain and local player needed to prove it.
+2. SQLite persistence, including seen history and stable queue order.
+3. Podcast subscriptions, scheduling, and broader RSS/Atom polling behavior.
+4. `yt-dlp` video-source support.
+5. Reusable admission, placement, and retention predicates.
+6. Retention and tombstone behavior.
+7. Playback progress and playback hardening.
+8. Minimal web UI.
+9. DSL exploration only after ordinary Racket APIs stabilize.
 
 Do not implement v0.1 non-goals opportunistically. In particular, avoid
 multiple queues, playlists, multi-user support, social/discovery features,
