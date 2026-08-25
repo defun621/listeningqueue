@@ -1260,18 +1260,22 @@ Do not preserve this shape if implementation evidence suggests a simpler boundar
 
 ## 22. Development Principles
 
-1. Prefer data and ordinary functions before macros.
-2. Keep core queue operations pure.
-3. Normalize external data early.
-4. Keep provider-specific metadata at extension boundaries.
-5. Treat placement as insertion, never repeated sorting.
-6. Preserve manual queue ordering.
-7. Reuse predicate vocabulary across admission, placement, and retention.
-8. Do not create a generic workflow abstraction.
-9. Do not introduce speculative extension categories.
-10. Keep the system easy to inspect from the Racket REPL.
-11. Add tests for every architectural invariant.
-12. Prefer boring implementation over clever abstraction until a real requirement appears.
+1. Before production implementation, write a Gherkin-style feature scenario for
+   the observable behavior, then create and run the smallest harness that
+   exercises the intended public boundary and detects missing or incorrect
+   behavior. Keep both the scenario and harness as regression assets.
+2. Prefer data and ordinary functions before macros.
+3. Keep core queue operations pure.
+4. Normalize external data early.
+5. Keep provider-specific metadata at extension boundaries.
+6. Treat placement as insertion, never repeated sorting.
+7. Preserve manual queue ordering.
+8. Reuse predicate vocabulary across admission, placement, and retention.
+9. Do not create a generic workflow abstraction.
+10. Do not introduce speculative extension categories.
+11. Keep the system easy to inspect from the Racket REPL.
+12. Add tests for every architectural invariant.
+13. Prefer boring implementation over clever abstraction until a real requirement appears.
 
 ---
 
@@ -1545,6 +1549,13 @@ These questions should not block M0–M2 unless required by implementation.
 
 When implementing this specification:
 
+- Write a traceable Gherkin-style feature scenario before its harness or
+  production implementation.
+- Write and run a focused harness before writing production implementation.
+- Make the default harness deterministic and offline; use fixtures/fakes for
+  network, clock, subprocess, database, and other effect boundaries as needed.
+- For bug fixes, specify the regression scenario and reproduce it in a harness
+  before fixing it.
 - Prefer idiomatic Racket.
 - Do not mechanically imitate Scala, Java, Rust, or Haskell architectures.
 - Begin with structs, modules, and functions.

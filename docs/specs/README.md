@@ -53,3 +53,38 @@ Every subproject must preserve these rules:
 Finish and demonstrate SP-01 before expanding the product surface. Later
 subprojects may establish small prerequisites early, but they must not delay the
 first outcome: supplying a public podcast feed and hearing an episode.
+
+## Behavior-contract and harness-first rule
+
+No production implementation starts until:
+
+1. A Gherkin-style scenario under [`features/`](../../features/README.md)
+   describes the observable behavior.
+2. The scenario carries a unique scenario ID plus matching subproject and
+   requirement tags.
+3. Its smallest useful harness exists and has been run.
+4. The harness demonstrates that it detects the missing or incorrect behavior.
+
+The harness must drive the intended boundary and remains in the repository as a
+regression test or documented smoke harness. Harness test names or registered
+metadata must reference the same scenario ID as the feature scenario.
+
+Choose the harness to match the subproject:
+
+| Subproject area | Minimum harness |
+| --- | --- |
+| Foundation | Module-load, test-command, and health-handler smoke harness |
+| Podcast listening | Feed fixture through normalization and `Next`, plus documented audio smoke harness |
+| Persistence | Temporary SQLite database and restart/rollback harness |
+| Subscriptions | Fake HTTP and injectable-clock scheduler harness |
+| Policy | Pure context/rule/queue invariant harness |
+| Retention | Temporary-database plan, execute, retry, and resurrection harness |
+| `yt-dlp` | Fake subprocess with recorded JSON and failure fixtures |
+| Playback | Fake resolver/progress harness plus opt-in browser playback smoke harness |
+| Web UI | Handler harness plus focused browser journey |
+| Deployment | Container/Compose startup, health, restart, and persistence harness |
+| DSL exploration | Expansion and syntax-error harness, only after entry criteria pass |
+
+Default harnesses must be deterministic and offline. Live-network, browser, or
+container checks may be opt-in, but they supplement rather than replace the
+default harness.

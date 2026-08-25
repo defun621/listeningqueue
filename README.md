@@ -26,7 +26,8 @@ control of scheduling and item lifecycle.
 
 See [spec.md](spec.md) for the full product and architecture specification, and
 [the subproject specifications](docs/specs/README.md) for implementation scope
-and acceptance criteria by work area.
+and acceptance criteria by work area. Executable behavior contracts are written
+as [Gherkin-style feature scenarios](features/README.md) before implementation.
 
 ## License
 

@@ -74,11 +74,26 @@ Document the exact commands that work in this repository. At minimum, the
 default test suite must run through `raco test`. Do not document commands that
 have not been verified.
 
+### FND-007 — Behavior traceability
+
+Provide a lightweight check that validates behavior contracts under `features/`:
+
+- every Scenario has one globally unique `@SC-*` ID;
+- every Scenario has a subproject tag, requirement tag, and execution tag;
+- duplicate scenario IDs fail;
+- every implemented `@automated` scenario maps to a RackUnit harness carrying
+  the same scenario ID;
+- harness references to unknown scenario IDs fail.
+
+This check may scan the limited repository conventions directly. It must not
+grow into a complete Gherkin parser or step-definition runtime.
+
 ## Testing
 
 - A smoke test requires the main module without starting background work.
 - A handler or server test confirms the local health response.
 - Configuration tests cover valid input and representative invalid values.
+- Behavior-contract tests cover missing, duplicate, and unknown scenario IDs.
 - The default suite must not require network access, `yt-dlp`, `ffmpeg`, or a
   persistent database.
 
@@ -91,6 +106,8 @@ SP-00 is complete when:
 3. A health request returns a successful response.
 4. Requiring core modules has no hidden external side effects.
 5. The README contains accurate development prerequisites and commands.
+6. Behavior contracts and RackUnit harnesses have mechanically checked scenario
+   ID traceability.
 
 ## Dependencies and follow-ups
 
