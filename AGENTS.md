@@ -15,6 +15,10 @@ Read `spec.md` before making architectural or product decisions. It is the
 source of truth for v0.1 behavior. If code, documentation, and the specification
 disagree, call out the mismatch rather than silently changing semantics.
 
+Before implementing a work area, also read its specification under
+`docs/specs/`. These documents refine scope, requirements, tests, and acceptance
+criteria for each subproject. They never override `spec.md`.
+
 ## Non-negotiable invariants
 
 - There is exactly one playback queue: `Next`.

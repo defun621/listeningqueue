@@ -1282,7 +1282,7 @@ The first product slice must prove that a user can actually listen to a podcast.
 Input:
 
 ```text
-one public podcast RSS or Atom URL
+one public podcast RSS 2.0 URL
 ```
 
 Flow:

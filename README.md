@@ -24,7 +24,9 @@ ListenQueue deliberately has one queue and is not a general workflow engine.
 Extensions add integrations and domain predicates, while the runtime retains
 control of scheduling and item lifecycle.
 
-See [spec.md](spec.md) for the full product and architecture specification.
+See [spec.md](spec.md) for the full product and architecture specification, and
+[the subproject specifications](docs/specs/README.md) for implementation scope
+and acceptance criteria by work area.
 
 ## License
 
