@@ -81,8 +81,8 @@ Provide a lightweight check that validates behavior contracts under `features/`:
 - every Scenario has one globally unique `@SC-*` ID;
 - every Scenario has a subproject tag, requirement tag, and execution tag;
 - duplicate scenario IDs fail;
-- every implemented `@automated` scenario maps to a RackUnit harness carrying
-  the same scenario ID;
+- every non-pending `@automated` scenario maps to a RackUnit harness carrying the
+  same scenario ID;
 - harness references to unknown scenario IDs fail.
 
 This check may scan the limited repository conventions directly. It must not

@@ -1,0 +1,5 @@
+(("SC-FND-001" "tests/harness/project-foundation-test.rkt")
+ ("SC-FND-002" "tests/harness/project-foundation-test.rkt")
+ ("SC-FND-003" "tests/harness/project-foundation-test.rkt")
+ ("SC-FND-004" "tests/harness/behavior-contract-test.rkt")
+ ("SC-FND-005" "tests/harness/project-foundation-test.rkt"))

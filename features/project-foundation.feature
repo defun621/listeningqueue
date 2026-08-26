@@ -30,3 +30,10 @@ Feature: Repeatable project foundation
     Then every scenario ID is unique
     And every implemented automated scenario has a matching harness
     And every harness scenario ID refers to an existing scenario
+
+  @SC-FND-005 @FND-003 @automated
+  Scenario: Invalid startup configuration is rejected before work starts
+    Given an application configuration with port 0
+    When the configuration is constructed
+    Then a configuration error identifies the invalid port
+    And no server is started

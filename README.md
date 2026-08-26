@@ -29,6 +29,33 @@ See [spec.md](spec.md) for the full product and architecture specification, and
 and acceptance criteria by work area. Executable behavior contracts are written
 as [Gherkin-style feature scenarios](features/README.md) before implementation.
 
+## Development
+
+Requirements:
+
+- Racket 8.10 or newer
+
+Run the deterministic, offline test suite:
+
+```bash
+raco test -x .
+```
+
+Start the local application:
+
+```bash
+racket listenqueue/main.rkt
+```
+
+Check process health from another terminal:
+
+```bash
+curl -i http://127.0.0.1:8080/health
+```
+
+Milestones require explicit human sign-off after automated checks. See the
+[manual acceptance runbook](docs/manual-acceptance.md).
+
 ## License
 
 See [LICENSE](LICENSE).
