@@ -21,7 +21,7 @@ episode in `Next`, presses play, and hears audio in the browser.
 - Normalizing episodes into minimal `Item` values
 - A minimal in-memory `Next`
 - Simple admission that accepts valid episodes
-- Simple placement that appends new episodes
+- Simple explicit placement that appends only user-selected episodes
 - Direct resolution of podcast enclosure URLs
 - A deliberately small local page using the browser's native audio player
 - Fixture-based unit tests and one documented manual playback smoke test
@@ -84,6 +84,10 @@ unexplained output.
 The in-memory queue must preserve insertion order and uniqueness. Adding the
 same episode twice must not create two queue entries. Operations must be pure
 where practical.
+
+Fetching or refreshing a feed is discovery, not placement: it must not add all
+episodes to `Next`. M0 displays discovered episodes separately and changes
+`Next` only after the user explicitly selects an episode.
 
 ### POD-005 — Media resolution
 

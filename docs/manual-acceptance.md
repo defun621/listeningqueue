@@ -121,14 +121,15 @@ It is live third-party data, so titles and episode count will change.
 3. Open <http://127.0.0.1:8080/> in a browser. Paste the feed URL above into
    `Podcast RSS URL`, then press `Add podcast`.
 
-   Expected: the page displays titled episodes under `Next`, each with a native
-   audio control. Loading may take several seconds.
+   Expected: the page displays titled episodes under `Discovered episodes`,
+   each with an `Add to Next` control. `Next` remains empty and has no audio
+   controls. Loading may take several seconds.
 
-4. Note the first episode title. Submit the same feed URL again, then use the
-   browser's find command for that exact title.
+4. Choose `Add to Next` for the first discovered episode.
 
-   Expected: the title still occurs once; the second load did not duplicate the
-   episode or disturb the visible order.
+   Expected: only that episode appears under `Next` with one native audio
+   control. The other discovered episodes remain outside `Next`, and the chosen
+   episode's discovery control changes to `In Next`.
 
 5. Press play on the first episode and listen for at least 30 seconds.
 

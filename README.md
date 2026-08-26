@@ -62,10 +62,11 @@ public RSS 2.0 test feed:
 https://podcasts.files.bbci.co.uk/p02nq0gn.rss
 ```
 
-ListenQueue adds the playable episodes to the in-memory `Next` queue. Press the
-native audio player's play button to listen. Submitting the same feed again
-does not duplicate episodes. Stop the process with `Ctrl-C`; restarting it is
-the reset command because M0 deliberately has no persistence.
+ListenQueue displays the discovered episodes without automatically putting them
+in `Next`. Choose `Add to Next` on the episode you want, then press its native
+audio player's play button. Selecting the same episode repeatedly cannot create
+duplicate queue entries. Stop the process with `Ctrl-C`; restarting it is the
+reset command because M0 deliberately has no persistence.
 
 M0 supports one-shot public HTTP(S) RSS 2.0 loading and direct podcast
 enclosures. Subscriptions, refresh scheduling, durable state, queue controls,

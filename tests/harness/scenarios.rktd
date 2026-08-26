@@ -17,4 +17,6 @@
  ("SC-POD-012" "tests/harness/podcast-domain-test.rkt")
  ("SC-POD-013" "tests/harness/podcast-domain-test.rkt")
  ("SC-POD-014" "tests/harness/podcast-web-test.rkt")
- ("SC-POD-015" "tests/harness/podcast-domain-test.rkt"))
+ ("SC-POD-015" "tests/harness/podcast-domain-test.rkt")
+ ("SC-POD-016" "tests/harness/podcast-web-test.rkt")
+ ("SC-POD-017" "tests/harness/podcast-web-test.rkt"))

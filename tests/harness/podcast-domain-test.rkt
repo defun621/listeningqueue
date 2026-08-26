@@ -32,7 +32,7 @@
 
 (module+ test
   (test-case
-   "[SC-POD-001] loading the same GUID episode twice creates one queue entry"
+   "[SC-POD-001] loading the same GUID twice stores it without enqueuing it"
 
    (define items
      (feed-bytes->items (fixture-bytes complete-feed) fixture-source))
@@ -45,10 +45,10 @@
     (length
      (filter (lambda (value)
                (string=? (item-external-id value) "episode-42"))
-             (library-items-in-next library)))
+             (library-all-items library)))
     1)
    (check-equal? (library-item-count library) 2)
-   (check-equal? (length (library-items-in-next library)) 2))
+   (check-equal? (library-items-in-next library) '()))
 
   (test-case
    "[SC-POD-002] optional description may be absent"
@@ -126,14 +126,20 @@
    (check-equal? request-count 0))
 
   (test-case
-   "[SC-POD-009] repeated ingestion preserves first-seen queue order"
+   "[SC-POD-009] repeated explicit placement preserves selected order"
 
    (define items
      (feed-bytes->items (fixture-bytes complete-feed) fixture-source))
    (define first (car items))
    (define second (cadr items))
-   (define library
+   (define discovered
      (library-ingest-items empty-library (list first second first)))
+   (define library
+     (library-add-to-next
+      (library-add-to-next
+       (library-add-to-next discovered (item-id first))
+       (item-id second))
+      (item-id first)))
 
    (check-equal? (map item-title (library-items-in-next library))
                  (list "Episode 42" "Episode 41")))

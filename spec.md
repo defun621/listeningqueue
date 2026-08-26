@@ -1302,9 +1302,11 @@ normalize episodes to Items
  ↓
 simple admission decision
  ↓
-insert into Next
+display discovered episodes outside Next
  ↓
-select an episode
+user explicitly selects an episode
+ ↓
+insert only that episode into Next
  ↓
 resolve its enclosure URL
  ↓

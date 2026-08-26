@@ -1,14 +1,14 @@
 @SP-01
 Feature: Listen to a public podcast episode
-  The first product slice must turn a public RSS feed into one playable entry in
-  Next without downloading the audio during refresh.
+  The first product slice must discover episodes from a public RSS feed, then
+  put only episodes explicitly selected by the user into Next.
 
   @SC-POD-001 @POD-002 @POD-004 @automated
-  Scenario: Loading the same GUID episode twice creates one queue entry
+  Scenario: Loading the same GUID episode twice stores it without enqueuing it
     Given an RSS fixture with an episode GUID "episode-42" and an enclosure URL
     When the feed is loaded twice
     Then exactly one Item has external ID "episode-42"
-    And exactly one entry for that Item exists in Next
+    And Next remains empty
 
   @SC-POD-002 @POD-003 @automated
   Scenario: An episode with optional metadata missing is still normalized
@@ -21,7 +21,7 @@ Feature: Listen to a public podcast episode
   @SC-POD-003 @POD-005 @automated
   Scenario: Feed loading does not download episode audio
     Given an RSS fixture whose episode enclosure points to monitored fake media
-    When the feed is loaded and the episode is added to Next
+    When the feed is loaded
     Then the media endpoint has not been requested
 
   @SC-POD-004 @POD-005 @automated
@@ -33,8 +33,8 @@ Feature: Listen to a public podcast episode
   @SC-POD-005 @POD-006 @manual @live
   Scenario: A user hears a public podcast episode in the browser
     Given ListenQueue is running locally with a documented public test feed
-    And an episode with a playable enclosure is displayed
-    When the user presses play for that episode
+    And discovered episodes are displayed outside Next
+    When the user explicitly adds one episode to Next and presses play
     Then browser audio playback starts
     And the user can hear the episode
 
@@ -59,14 +59,14 @@ Feature: Listen to a public podcast episode
     And the feed opener is not called
 
   @SC-POD-009 @POD-004 @automated
-  Scenario: Repeated ingestion preserves first-seen queue order
-    Given Items A and B followed by A again
-    When the Items are ingested into an empty library
+  Scenario: Repeated explicit placement preserves first-selected queue order
+    Given discovered Items A and B
+    When the user adds A, then B, then A to Next
     Then Next contains A followed by B
 
   @SC-POD-010 @POD-006 @automated
   Scenario: A playable episode renders a native audio control
-    Given Next contains an Item with a podcast enclosure
+    Given a discovered Item with a podcast enclosure was explicitly added to Next
     When the home page is rendered
     Then the response contains the Item title
     And the response contains an audio control using the enclosure URL
@@ -102,3 +102,17 @@ Feature: Listen to a public podcast episode
     Given an RSS fixture with an episode description wrapped in CDATA
     When the feed is parsed and normalized
     Then the Item description contains the CDATA content
+
+  @SC-POD-016 @POD-004 @POD-006 @automated
+  Scenario: Loading a feed displays discoveries but leaves Next empty
+    Given a fresh in-memory ListenQueue application and a fake podcast feed
+    When the feed URL is submitted
+    Then the discovered episode titles and Add to Next controls are displayed
+    And no audio control exists in Next
+
+  @SC-POD-017 @POD-004 @POD-006 @automated
+  Scenario: Only an explicitly selected episode enters Next
+    Given two discovered podcast episodes
+    When the user adds one episode to Next twice
+    Then Next contains only that episode
+    And exactly one native audio control is rendered for it
