@@ -65,6 +65,10 @@ Prefer the RSS GUID as `external-id`. If it is absent, derive a deterministic
 fallback from stable feed data such as enclosure URL or canonical episode URL.
 Document the fallback order and test it. A title alone is not a safe identity.
 
+M0 uses this exact order: a nonblank RSS GUID, then the HTTP(S) enclosure URL.
+An episode without either is not playable and is skipped. The title and
+publication date never participate in identity.
+
 ### POD-003 — Feed parsing
 
 The parser must tolerate optional fields while rejecting entries that cannot be

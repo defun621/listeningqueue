@@ -53,6 +53,25 @@ Check process health from another terminal:
 curl -i http://127.0.0.1:8080/health
 ```
 
+## Listen to a podcast
+
+With the application running, open <http://127.0.0.1:8080/> and submit this
+public RSS 2.0 test feed:
+
+```text
+https://podcasts.files.bbci.co.uk/p02nq0gn.rss
+```
+
+ListenQueue adds the playable episodes to the in-memory `Next` queue. Press the
+native audio player's play button to listen. Submitting the same feed again
+does not duplicate episodes. Stop the process with `Ctrl-C`; restarting it is
+the reset command because M0 deliberately has no persistence.
+
+M0 supports one-shot public HTTP(S) RSS 2.0 loading and direct podcast
+enclosures. Subscriptions, refresh scheduling, durable state, queue controls,
+and saved playback progress arrive in later milestones. The BBC test feed is a
+live third-party resource and may change independently of ListenQueue.
+
 Milestones require explicit human sign-off after automated checks. See the
 [manual acceptance runbook](docs/manual-acceptance.md).
 

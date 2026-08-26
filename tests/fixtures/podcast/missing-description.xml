@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Small Fixture Show</title>
+    <item>
+      <guid>episode-no-description</guid>
+      <title>Episode Without Description</title>
+      <enclosure url="https://media.example/no-description.mp3"
+                 type="audio/mpeg" />
+    </item>
+  </channel>
+</rss>

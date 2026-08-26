@@ -252,8 +252,9 @@ implement the fix.
 ### Human milestone gate
 
 Automated success is necessary but not sufficient to complete a milestone.
-Before asking for human acceptance, create a scoped milestone-candidate commit
-and ensure the worktree is clean. The candidate commit includes production code,
+Before asking for human acceptance, create a scoped milestone-candidate commit,
+push it to the configured remote, and ensure the worktree is clean. The
+candidate commit includes production code,
 feature scenarios, harnesses, fixtures, migrations, configuration examples, and
 the exact acceptance instructions needed to test that revision. It never
 includes runtime data, logs, temporary databases, downloaded media, or secrets.
@@ -264,11 +265,11 @@ setup/cleanup instructions, expected observable results, known limitations, and
 a short result template. The user must test that revision and explicitly
 approve it.
 
-After approval, create a separate acceptance-record commit that names the tested
-candidate hash and reported environment/evidence. Only then may production work
-begin on the next milestone. If code or acceptance-relevant configuration
-changes after testing, create a new candidate; previous approval does not apply
-to the new revision.
+After approval, create and push a separate acceptance-record commit that names
+the tested candidate hash and reported environment/evidence. Only then may
+production work begin on the next milestone. If code or acceptance-relevant
+configuration changes after testing, create and push a new candidate; previous
+approval does not apply to the new revision.
 
 Until that approval arrives:
 
@@ -328,11 +329,12 @@ run all remaining checks.
 8. Run the formatter and the narrowest relevant tests, then broader tests when
    practical.
 9. Update documentation when public configuration or behavior changes.
-10. At a milestone boundary, create and verify a scoped candidate commit with a
-    clean worktree.
-11. Give the user that commit hash and the manual acceptance procedure; wait for
-    explicit approval.
-12. Record approval in a separate commit before starting the next milestone.
+10. At a milestone boundary, create, push, and verify a scoped candidate commit
+    with a clean worktree.
+11. Give the user that remote commit hash and the manual acceptance procedure;
+    wait for explicit approval.
+12. Record approval in a separate commit, push it, and verify the remote before
+    starting the next milestone.
 13. In the handoff, summarize scenarios, harnesses, behavior changed, checks
     run, manual acceptance status, and any known gaps or decisions still open in
     `spec.md`.

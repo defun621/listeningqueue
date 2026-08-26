@@ -2,6 +2,8 @@
 
 (define collection 'multi)
 (define deps '("base"
+               "net-lib"
+               "xml-lib"
                "web-server-lib"))
 (define build-deps '("rackunit-lib"))
 (define pkg-desc "A self-hosted listening inbox with one ordered queue")

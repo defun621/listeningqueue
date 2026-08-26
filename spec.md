@@ -1429,15 +1429,15 @@ Only after normal Racket APIs stabilize:
 ### Milestone acceptance gate
 
 Every milestone requires passing automated feature harnesses, a named candidate
-commit, explicit human confirmation against that commit, and a separate
-acceptance record.
+commit pushed to the configured remote, explicit human confirmation against
+that commit, and a separate pushed acceptance record.
 
-The implementation agent must commit the acceptance-relevant code, scenarios,
-harnesses, fixtures, and instructions before asking for human review, then stop
-at the milestone boundary and provide the commit hash plus exact setup, action,
-expected-result, and cleanup instructions. Runtime state, secrets, logs,
-temporary databases, downloaded media, and other test artifacts are never part
-of the candidate commit.
+The implementation agent must commit and push the acceptance-relevant code,
+scenarios, harnesses, fixtures, and instructions before asking for human review,
+then stop at the milestone boundary and provide the remote commit hash plus exact
+setup, action, expected-result, and cleanup instructions. Runtime state, secrets,
+logs, temporary databases, downloaded media, and other test artifacts are never
+part of the candidate commit.
 
 The agent must not mark the milestone complete or begin production
 implementation for the next milestone until the user reports acceptance and

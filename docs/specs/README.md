@@ -93,7 +93,7 @@ default harness.
 
 Each milestone ends with the applicable procedure in
 [`docs/manual-acceptance.md`](../manual-acceptance.md). Automated checks do not
-complete a milestone by themselves. First commit a clean, scoped milestone
-candidate; then the user performs the observable checks against that commit and
-explicitly approves it. Record the approval in a separate commit before
-production work begins on the next milestone.
+complete a milestone by themselves. First commit and push a clean, scoped
+milestone candidate; then the user performs the observable checks against that
+remote commit and explicitly approves it. Record and push the approval in a
+separate commit before production work begins on the next milestone.

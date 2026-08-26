@@ -9,13 +9,15 @@ Before presenting a gate, the implementation agent must:
 1. run all required automated checks;
 2. commit all acceptance-relevant code, scenarios, harnesses, fixtures,
    migrations, examples, and instructions as one scoped candidate;
-3. verify the candidate commit exists and the worktree is clean;
-4. provide its commit hash with the manual procedure.
+3. push the candidate to the configured remote;
+4. verify the remote contains that commit and the worktree is clean;
+5. provide its commit hash with the manual procedure.
 
 No milestone is complete until the user tests that candidate and explicitly
-reports a pass. The agent then records the result in a separate commit before
-starting the next milestone. Commands that depend on not-yet-implemented
-interfaces must be filled in and verified by the candidate change.
+reports a pass. The agent then records the result in a separate commit, pushes
+it to the configured remote, and verifies the push before starting the next
+milestone. Commands that depend on not-yet-implemented interfaces must be filled
+in and verified by the candidate change.
 
 Never commit runtime data, logs, temporary databases, downloads, media, browser
 profiles, credentials, cookie files, tokens, or other secrets as acceptance
@@ -85,30 +87,63 @@ invalid configuration fails before external work starts.
 
 Approval response: `Gate SP-00: PASS`, or use the failure template.
 
-## M0 — Podcast listening vertical slice
+## M0 — Podcast listening vertical slice `[SC-POD-005]`
 
 Purpose: confirm the first product outcome—a real public podcast can be heard.
 
-Before this gate, implementation must document one tested public RSS 2.0 feed
-and exact application start/reset commands.
+The tested public feed for this gate is BBC Global News Podcast:
 
-1. Start from the documented clean in-memory state and launch ListenQueue.
-2. Enter the documented public RSS 2.0 feed URL.
-3. Confirm at least one episode displays a title and playable state.
-4. Add the same episode to `Next` twice.
+```text
+https://podcasts.files.bbci.co.uk/p02nq0gn.rss
+```
 
-   Expected: exactly one queue entry exists.
+It is live third-party data, so titles and episode count will change.
 
-5. Press play and listen for at least 30 seconds.
+1. Check out the candidate commit and confirm the worktree is clean:
+
+   ```bash
+   git status --short
+   git rev-parse HEAD
+   ```
+
+   Expected: no status output; `HEAD` is the candidate hash supplied for this
+   gate.
+
+2. Launch a fresh in-memory instance:
+
+   ```bash
+   racket listenqueue/main.rkt
+   ```
+
+   Expected: the process remains running and reports
+   `http://localhost:8080`.
+
+3. Open <http://127.0.0.1:8080/> in a browser. Paste the feed URL above into
+   `Podcast RSS URL`, then press `Add podcast`.
+
+   Expected: the page displays titled episodes under `Next`, each with a native
+   audio control. Loading may take several seconds.
+
+4. Note the first episode title. Submit the same feed URL again, then use the
+   browser's find command for that exact title.
+
+   Expected: the title still occurs once; the second load did not duplicate the
+   episode or disturb the visible order.
+
+5. Press play on the first episode and listen for at least 30 seconds.
 
    Expected: audio is audible without first downloading or transcoding the full
    episode.
 
-6. Return to the episode list and queue.
+6. Pause playback and inspect the episode list.
 
    Expected: playback did not change existing queue order.
 
-7. Stop the application and run the documented in-memory cleanup command.
+7. Stop the application with `Ctrl-C`. Restart it once with the command from
+   step 2 and reload the browser page.
+
+   Expected: `Next` is empty. Stop the application again with `Ctrl-C`; no file
+   cleanup is needed because M0 stores no runtime state on disk.
 
 Approval response: `Gate M0: PASS`, or use the failure template.
 

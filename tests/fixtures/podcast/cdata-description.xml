@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>CDATA Fixture Show</title>
+    <item>
+      <guid>episode-cdata-description</guid>
+      <title>Episode With CDATA Description</title>
+      <description><![CDATA[<p>Summary with <b>markup</b>.</p>]]></description>
+      <enclosure url="https://media.example/cdata-description.mp3"
+                 type="audio/mpeg" />
+    </item>
+  </channel>
+</rss>
