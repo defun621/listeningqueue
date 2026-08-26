@@ -1276,6 +1276,8 @@ Do not preserve this shape if implementation evidence suggests a simpler boundar
 11. Keep the system easy to inspect from the Racket REPL.
 12. Add tests for every architectural invariant.
 13. Prefer boring implementation over clever abstraction until a real requirement appears.
+14. End every milestone with explicit human acceptance using documented steps;
+    automated checks alone do not complete a milestone.
 
 ---
 
@@ -1423,6 +1425,29 @@ Only after normal Racket APIs stabilize:
 - macros where justified
 - `syntax-parse` evaluation
 - possible `#lang listenqueue`
+
+### Milestone acceptance gate
+
+Every milestone requires passing automated feature harnesses, a named candidate
+commit, explicit human confirmation against that commit, and a separate
+acceptance record.
+
+The implementation agent must commit the acceptance-relevant code, scenarios,
+harnesses, fixtures, and instructions before asking for human review, then stop
+at the milestone boundary and provide the commit hash plus exact setup, action,
+expected-result, and cleanup instructions. Runtime state, secrets, logs,
+temporary databases, downloaded media, and other test artifacts are never part
+of the candidate commit.
+
+The agent must not mark the milestone complete or begin production
+implementation for the next milestone until the user reports acceptance and
+that result is recorded separately. Any acceptance-relevant change creates a
+new candidate and invalidates approval of the previous revision. Failed human
+checks become behavior scenarios and regression harnesses before fixes are
+implemented.
+
+The repository manual acceptance runbook defines the minimum checks. A
+milestone may add checks, but it may not remove the required human gate.
 
 ---
 

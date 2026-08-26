@@ -46,12 +46,19 @@ Every scenario carries:
 - one globally unique scenario ID, such as `@SC-POD-001`;
 - one subproject tag, such as `@SP-01`;
 - at least one requirement tag, such as `@POD-002`;
-- one execution tag:
+- exactly one automation tag:
   - `@automated`: deterministic default-suite harness;
   - `@manual`: unavoidable human observation;
+- optional environment tags:
   - `@live`: real external network/service;
   - `@slow`: excluded from the fast feedback loop;
-  - `@container`: requires a built container runtime.
+  - `@container`: requires a built container runtime;
+- `@pending` when the scenario is specified but its implementation work has not
+  started.
+
+Remove `@pending` when the scenario harness is added and before production
+implementation begins. A non-pending `@automated` scenario must have a mapped
+harness.
 
 Scenario IDs use `SC-<AREA>-<NUMBER>`, remain stable after publication, and are
 never reused for different behavior. Wording may improve without changing the

@@ -206,8 +206,13 @@ Each scenario must:
 - carry tags for its subproject and requirement, such as `@SP-01 @POD-002`;
 - use one primary action in `When` and concrete, verifiable outcomes in `Then`;
 - state enough preconditions to run deterministically;
-- be tagged `@automated` by default, or explicitly `@manual`, `@live`, `@slow`,
-  or `@container` when automation cannot belong to the default suite.
+- carry exactly one automation tag: `@automated` by default or `@manual` when
+  human observation is unavoidable;
+- use `@live`, `@slow`, or `@container` as additional environment tags when
+  needed;
+- carry `@pending` while behavior is specified but implementation work has not
+  started; remove `@pending` when its harness is created, before production
+  implementation.
 
 The corresponding harness must reference the scenario ID in its test name or
 registered metadata so reviewers and the traceability check can connect contract
@@ -244,6 +249,37 @@ not replace the default deterministic harness. For a bug fix, first add or
 extend a feature scenario, then make its harness reproduce the bug, then
 implement the fix.
 
+### Human milestone gate
+
+Automated success is necessary but not sufficient to complete a milestone.
+Before asking for human acceptance, create a scoped milestone-candidate commit
+and ensure the worktree is clean. The candidate commit includes production code,
+feature scenarios, harnesses, fixtures, migrations, configuration examples, and
+the exact acceptance instructions needed to test that revision. It never
+includes runtime data, logs, temporary databases, downloaded media, or secrets.
+
+Then follow `docs/manual-acceptance.md` and stop at the milestone boundary.
+Provide the user with the candidate commit hash, exact verified commands,
+setup/cleanup instructions, expected observable results, known limitations, and
+a short result template. The user must test that revision and explicitly
+approve it.
+
+After approval, create a separate acceptance-record commit that names the tested
+candidate hash and reported environment/evidence. Only then may production work
+begin on the next milestone. If code or acceptance-relevant configuration
+changes after testing, create a new candidate; previous approval does not apply
+to the new revision.
+
+Until that approval arrives:
+
+- do not mark the milestone complete;
+- do not claim its user outcome is accepted;
+- do not begin production implementation for the next milestone;
+- keep later feature scenarios `@pending`.
+
+Reported failures become new or updated feature scenarios before fixes are
+implemented.
+
 Every behavior change must include focused tests at the lowest useful layer.
 Architectural invariants deserve direct tests, especially:
 
@@ -263,15 +299,15 @@ Avoid live-network tests in the default suite. Wrap subprocess and network
 boundaries so unit tests can use fixtures or fakes; keep a smaller opt-in
 integration suite for real tools.
 
-The repository has not established final commands yet. Once the package and
-test layout exist, prefer standard Racket tooling and keep this section updated.
-Typical checks are:
+The established test commands are:
 
 ```bash
-raco fmt --check <changed-racket-files>
 raco test <test-paths>
 raco test -x .
 ```
+
+No formatter command is established yet. Add and verify one before documenting
+it as required tooling.
 
 Do not claim a check passed unless it was actually run. If a required executable
 such as Racket, `yt-dlp`, or `ffmpeg` is unavailable, report that limitation and
@@ -292,8 +328,14 @@ run all remaining checks.
 8. Run the formatter and the narrowest relevant tests, then broader tests when
    practical.
 9. Update documentation when public configuration or behavior changes.
-10. In the handoff, summarize scenarios, harnesses, behavior changed, checks
-    run, and any known gaps or decisions still open in `spec.md`.
+10. At a milestone boundary, create and verify a scoped candidate commit with a
+    clean worktree.
+11. Give the user that commit hash and the manual acceptance procedure; wait for
+    explicit approval.
+12. Record approval in a separate commit before starting the next milestone.
+13. In the handoff, summarize scenarios, harnesses, behavior changed, checks
+    run, manual acceptance status, and any known gaps or decisions still open in
+    `spec.md`.
 
 Do not silently resolve an open product question from `spec.md` by creating a
 large abstraction. Choose the smallest reversible behavior needed for the task,
@@ -312,3 +354,7 @@ A change is complete when it:
 - passes applicable formatting and test checks;
 - introduces no unnecessary provider coupling or workflow machinery; and
 - leaves configuration and documentation consistent with the implementation.
+
+A milestone additionally requires explicit user confirmation that its manual
+acceptance procedure passed against a named candidate commit, followed by a
+separate acceptance-record commit.
