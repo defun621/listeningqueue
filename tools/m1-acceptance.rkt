@@ -118,23 +118,117 @@
   (call-with-store
    directory
    (lambda (value)
-     (printf "Reinserted: ~a\n"
-             (store-ingest-items! value (list (fixture-b))))
-     (print-state value))))
+     (define reinserted
+       (store-ingest-items! value (list (fixture-b))))
+     (printf "Reinserted: ~a\n" reinserted)
+     (print-state value)
+     reinserted)))
 
 (define (cleanup! directory)
   (require-marker directory)
   (delete-directory/files directory)
   (displayln "Acceptance data removed."))
 
+(define (check-value! stage description actual expected)
+  (unless (equal? actual expected)
+    (raise-user-error
+     'm1-acceptance
+     "~a failed: expected ~a to be ~e, got ~e"
+     stage
+     description
+     expected
+     actual)))
+
+(define (verify-state! directory
+                       stage
+                       expected-count
+                       expected-next
+                       expected-progress
+                       expected-seen)
+  (call-with-store
+   directory
+   (lambda (value)
+     (define a (fixture-a))
+     (define b (fixture-b))
+     (define progress (store-playback value (item-id a)))
+     (check-value! stage
+                   "Item count"
+                   (store-item-count value)
+                   expected-count)
+     (check-value! stage
+                   "Next order"
+                   (map item-title (store-items-in-next value))
+                   expected-next)
+     (check-value! stage
+                   "Episode 42 progress"
+                   (and progress
+                        (playback-state-position-seconds
+                         progress))
+                   expected-progress)
+     (check-value! stage
+                   "Episode 41 seen disposition"
+                   (store-seen-disposition value
+                                           (item-source-id b)
+                                           (item-external-id b))
+                   expected-seen))))
+
+(define (run-acceptance!)
+  (define directory
+    (make-temporary-file "listenqueue-m1-acceptance-~a" 'directory))
+  (define passed? #f)
+  (dynamic-wind
+    void
+    (lambda ()
+      (displayln "M1 acceptance: isolated SQLite persistence")
+      (seed! directory)
+      (verify-state! directory
+                     "restart and order"
+                     3
+                     (list "Episode 40" "Episode 42" "Episode 41")
+                     37.5
+                     'active)
+      (displayln "Restart and order: PASS")
+
+      (remove-a! directory)
+      (verify-state! directory
+                     "queue removal and progress"
+                     3
+                     (list "Episode 40" "Episode 41")
+                     37.5
+                     'active)
+      (displayln "Queue removal and progress: PASS")
+
+      (delete-b! directory)
+      (check-value! "deletion and tombstone"
+                    "upstream reinsert count"
+                    (retry-b! directory)
+                    0)
+      (verify-state! directory
+                     "deletion and tombstone"
+                     2
+                     (list "Episode 40")
+                     37.5
+                     'deleted)
+      (displayln "Deletion and tombstone: PASS")
+      (set! passed? #t))
+    (lambda ()
+      (when (directory-exists? directory)
+        (delete-directory/files directory))
+      (displayln "Cleanup: PASS")))
+  (when passed?
+    (displayln "Gate: M1")
+    (displayln "  Result: PASS")))
+
 (define (usage)
   (raise-user-error
    'm1-acceptance
-   "usage: racket tools/m1-acceptance.rkt \
+   "usage: racket tools/m1-acceptance.rkt\n\
+       racket tools/m1-acceptance.rkt \
 {seed|inspect|remove-a|delete-b|retry-b|cleanup} DATA_DIRECTORY"))
 
 (module+ main
   (match (vector->list (current-command-line-arguments))
+    ['() (run-acceptance!)]
     [(list command directory)
      (case (string->symbol command)
        [(seed) (seed! directory)]

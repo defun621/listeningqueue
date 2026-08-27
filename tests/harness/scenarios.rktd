@@ -33,4 +33,5 @@
  ("SC-DB-011" "tests/harness/persistence-test.rkt")
  ("SC-DB-012" "tests/harness/persistence-test.rkt")
  ("SC-DB-013" "tests/harness/persistence-test.rkt")
- ("SC-DB-014" "tests/harness/persistence-test.rkt"))
+ ("SC-DB-014" "tests/harness/persistence-test.rkt")
+ ("SC-DB-015" "tests/harness/acceptance-tool-test.rkt"))

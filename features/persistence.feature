@@ -94,9 +94,16 @@ Feature: Persist listening state in SQLite
     Then its payload contains no absolute path to the application source files
     And the Item can still be loaded through a new connection
 
+  @SC-DB-015 @DB-009 @automated
+  Scenario: The M1 human gate is one self-contained script
+    Given the M1 acceptance script
+    When it is run once without setup arguments
+    Then it checks restart, order, progress, deletion, and non-resurrection
+    And it cleans its temporary data and reports Gate M1 PASS
+
   @SC-DB-009 @DB-002 @DB-003 @DB-004 @DB-006 @DB-008 @manual
   Scenario: A human observes durable order, progress, and tombstones
-    Given the documented M1 acceptance harness and a temporary data directory
-    When the user seeds, reopens, removes, and deletes the fixture Items
-    Then order and progress survive restart
-    And deleted content remains tombstoned
+    Given the documented self-contained M1 acceptance script
+    When the user runs the script once against the candidate revision
+    Then the script visibly checks durable order, progress, and tombstones
+    And it cleans its temporary data and reports Gate M1 PASS

@@ -157,68 +157,29 @@ Approval response: `Gate M0: PASS`, or use the failure template.
 Purpose: confirm state survives restart and database operations preserve domain
 invariants.
 
-1. Create a uniquely named temporary data directory:
+From the checked-out M1 candidate, run the complete acceptance script once:
 
-   ```bash
-   M1_DATA_DIR="$(mktemp -d /tmp/listenqueue-m1-XXXXXX)"
-   printf '%s\n' "$M1_DATA_DIR"
-   ```
+```bash
+racket tools/m1-acceptance.rkt
+```
 
-   Keep the printed path. The acceptance tool will only clean a directory that
-   contains its own marker file.
+The script creates its own isolated temporary database, closes and reopens it
+between checks, verifies queue order and playback progress, removes one Item
+from `Next`, deletes another Item, retries that upstream Item, and cleans the
+temporary directory even if a check fails.
 
-2. Seed three fixture Items, explicitly add them to `Next`, arrange them as
-   `C, A, B`, and save progress for `A`:
+Expected final output:
 
-   ```bash
-   racket tools/m1-acceptance.rkt seed "$M1_DATA_DIR"
-   ```
+```text
+Restart and order: PASS
+Queue removal and progress: PASS
+Deletion and tombstone: PASS
+Cleanup: PASS
+Gate: M1
+  Result: PASS
+```
 
-   Expected:
-
-   ```text
-   Items: 3
-   Next: Episode 40 -> Episode 42 -> Episode 41
-   Episode 42 progress: 37.5
-   Episode 41 seen: active
-   ```
-
-3. Open a new connection to the same directory:
-
-   ```bash
-   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
-   ```
-
-   Expected: Items, order `C, A, B`, and progress for `A` are unchanged.
-
-4. Remove `A` from `Next`, then inspect through another new connection:
-
-   ```bash
-   racket tools/m1-acceptance.rkt remove-a "$M1_DATA_DIR"
-   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
-   ```
-
-   Expected: `Next` is `Episode 40 -> Episode 41`, while Episode 42 progress is
-   still `37.5`.
-
-5. Delete `B`, retry its upstream entry through a new connection, and inspect:
-
-   ```bash
-   racket tools/m1-acceptance.rkt delete-b "$M1_DATA_DIR"
-   racket tools/m1-acceptance.rkt retry-b "$M1_DATA_DIR"
-   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
-   ```
-
-   Expected: `Reinserted: 0`, `Items: 2`, `Next: Episode 40`, and
-   `Episode 41 seen: deleted`.
-
-6. Remove only the marked acceptance directory:
-
-   ```bash
-   racket tools/m1-acceptance.rkt cleanup "$M1_DATA_DIR"
-   ```
-
-   Expected: `Acceptance data removed.`
+Any failed check exits nonzero and does not print `Gate: M1 ... PASS`.
 
 Approval response: `Gate M1: PASS`, or use the failure template.
 
