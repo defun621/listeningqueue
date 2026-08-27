@@ -2,6 +2,7 @@
 
 (define collection 'multi)
 (define deps '("base"
+               "db-lib"
                "net-lib"
                "xml-lib"
                "web-server-lib"))

@@ -65,13 +65,23 @@ https://podcasts.files.bbci.co.uk/p02nq0gn.rss
 ListenQueue displays the discovered episodes without automatically putting them
 in `Next`. Choose `Add to Next` on the episode you want, then press its native
 audio player's play button. Selecting the same episode repeatedly cannot create
-duplicate queue entries. Stop the process with `Ctrl-C`; restarting it is the
-reset command because M0 deliberately has no persistence.
+duplicate queue entries.
 
-M0 supports one-shot public HTTP(S) RSS 2.0 loading and direct podcast
-enclosures. Subscriptions, refresh scheduling, durable state, queue controls,
-and saved playback progress arrive in later milestones. The BBC test feed is a
-live third-party resource and may change independently of ListenQueue.
+Items, seen history, `Next` order, and playback state are stored in SQLite. Set
+the data directory explicitly when developing or self-hosting:
+
+```bash
+LISTENQUEUE_DATA_DIR=/path/to/listenqueue-data racket listenqueue/main.rkt
+```
+
+The database is created as `listenqueue.sqlite3` under that directory. Without
+the environment variable, ListenQueue uses the platform's Racket preferences
+directory.
+
+The current slice supports one-shot public HTTP(S) RSS 2.0 loading, direct
+podcast enclosures, and durable core listening state. Subscriptions and refresh
+scheduling arrive in later milestones. The BBC test feed is a live third-party
+resource and may change independently of ListenQueue.
 
 Milestones require explicit human sign-off after automated checks. See the
 [manual acceptance runbook](docs/manual-acceptance.md).

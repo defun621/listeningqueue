@@ -121,6 +121,29 @@ Repositories should expose domain operations rather than raw SQL to unrelated
 modules. Pure queue functions remain separately testable; persistence adapts
 those semantics without becoming the owner of placement policy.
 
+## M1 implementation decisions
+
+- The database file is `<data-directory>/listenqueue.sqlite3`.
+- Schema migrations and their version records run in one transaction. Version
+  1 creates all initial logical tables; newer schema versions are refused.
+- Version 1 reserves the `sources` table, but M1 has no Source domain model or
+  source repository. Those round trips begin in M2, where `spec.md` assigns
+  subscriptions and source state.
+- Item ingestion uses one transaction per Item. Discovery atomically writes the
+  Item and its seen record but never changes `Next`; explicit queue operations
+  are separate transactions.
+- Core and extension-owned Item values use a versioned, portable prefab-data
+  envelope. Persistence stores provider fields without interpreting them and
+  does not embed the checkout path in the database.
+- `next_items` uses unique integer positions. Manual insert/move operations
+  rewrite compact positions inside one transaction using a collision-free
+  temporary range.
+- Deleting an Item marks its independent seen row `deleted`. Foreign keys
+  explicitly cascade the Item's queue and playback rows.
+- SQLite busy handling retries 50 times at 100 milliseconds per retry. v0.1
+  assumes one ListenQueue process while permitting its runtime tasks to share
+  the repository connection.
+
 ## Error handling
 
 Database errors must identify the operation and relevant entity without
@@ -130,7 +153,8 @@ roll back completely and leave the connection usable where possible.
 ## Testing
 
 - Fresh database creation and every migration path
-- Item and source round trips, including optional fields and attributes
+- Item round trips, including optional fields and attributes
+- Source round trips when the M2 Source model and repository are introduced
 - Duplicate `(source-id, external-id)` insertion
 - Seen state surviving Item deletion
 - Every queue mutation followed by reload

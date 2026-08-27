@@ -11,7 +11,8 @@
          "../domain/library.rkt"
          "../extension/rss.rkt"
          "../media/podcast.rkt"
-         "../media/resolver.rkt")
+         "../media/resolver.rkt"
+         "../persistence/store.rkt")
 
 (provide application
          make-application
@@ -103,8 +104,31 @@
 (define (request-method-is? request expected)
   (bytes=? (request-method request) expected))
 
-(define (make-application #:load-feed [load-feed load-podcast-feed])
+(define (store->library persistent-store)
+  (define discovered
+    (library-ingest-items empty-library
+                          (store-all-items persistent-store)))
+  (for/fold ([result discovered])
+            ([value (in-list (store-items-in-next persistent-store))])
+    (library-add-to-next result (item-id value))))
+
+(define (make-application #:load-feed [load-feed load-podcast-feed]
+                          #:store [persistent-store #f])
   (define current-library (box empty-library))
+  (define (current-state)
+    (if persistent-store
+        (store->library persistent-store)
+        (unbox current-library)))
+  (define (ingest! items)
+    (if persistent-store
+        (store-ingest-items! persistent-store items)
+        (set-box! current-library
+                  (library-ingest-items (unbox current-library) items))))
+  (define (add-to-next! id)
+    (if persistent-store
+        (store-next-add-last! persistent-store id)
+        (set-box! current-library
+                  (library-add-to-next (unbox current-library) id))))
   (lambda (request)
     (define path (request-path request))
     (cond
@@ -113,29 +137,27 @@
        (health-handler request)]
       [(and (request-method-is? request #"GET")
             (equal? path '()))
-       (render-home-response (unbox current-library) #f)]
+       (render-home-response (current-state) #f)]
       [(and (request-method-is? request #"POST")
             (equal? path '("feeds")))
        (with-handlers ([exn:fail?
                         (lambda (error)
                           (render-home-response
-                           (unbox current-library)
+                           (current-state)
                            (string-append "Could not add feed: "
                                           (exn-message error))))])
          (define feed-url
            (string-trim
             (extract-binding/single 'feed-url
                                     (request-bindings request))))
-         (set-box! current-library
-                   (library-ingest-items (unbox current-library)
-                                         (load-feed feed-url)))
+         (ingest! (load-feed feed-url))
          (redirect-to "/" see-other))]
       [(and (request-method-is? request #"POST")
             (equal? path '("next")))
        (with-handlers ([exn:fail?
                         (lambda (error)
                           (render-home-response
-                           (unbox current-library)
+                           (current-state)
                            (string-append "Could not add episode: "
                                           (exn-message error))))])
          (define bindings (request-bindings request))
@@ -143,8 +165,7 @@
            (source-item-id
             (extract-binding/single 'source-id bindings)
             (extract-binding/single 'external-id bindings)))
-         (set-box! current-library
-                   (library-add-to-next (unbox current-library) id))
+         (add-to-next! id)
          (redirect-to "/" see-other))]
       [else (not-found-handler request)])))
 

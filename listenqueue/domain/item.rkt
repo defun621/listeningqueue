@@ -6,7 +6,7 @@
 ;; An Item's identity is stable within a source.  Display metadata may change
 ;; when a feed is refreshed without creating a second queue entry.
 (struct source-item-id (source-id external-id)
-  #:transparent)
+  #:prefab)
 
 (struct item
   (id
@@ -19,4 +19,4 @@
    canonical-url
    media-ref
    attributes)
-  #:transparent)
+  #:prefab)

@@ -14,7 +14,7 @@
          load-podcast-feed)
 
 (struct podcast-media-ref (uri mime-type length)
-  #:transparent)
+  #:prefab)
 
 (struct exn:fail:feed exn:fail (kind)
   #:transparent)

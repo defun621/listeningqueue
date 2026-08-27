@@ -109,10 +109,12 @@ It is live third-party data, so titles and episode count will change.
    Expected: no status output; `HEAD` is the candidate hash supplied for this
    gate.
 
-2. Launch a fresh in-memory instance:
+2. Launch an isolated instance with a fresh temporary data directory:
 
    ```bash
-   racket listenqueue/main.rkt
+   M0_DATA_DIR="$(mktemp -d /tmp/listenqueue-m0-XXXXXX)"
+   printf '%s\n' "$M0_DATA_DIR"
+   LISTENQUEUE_DATA_DIR="$M0_DATA_DIR" racket listenqueue/main.rkt
    ```
 
    Expected: the process remains running and reports
@@ -140,35 +142,83 @@ It is live third-party data, so titles and episode count will change.
 
    Expected: playback did not change existing queue order.
 
-7. Stop the application with `Ctrl-C`. Restart it once with the command from
-   step 2 and reload the browser page.
+7. Stop the application with `Ctrl-C`, verify the value of `M0_DATA_DIR` is the
+   uniquely generated `/tmp/listenqueue-m0-*` path from step 2, then remove only
+   that directory:
 
-   Expected: `Next` is empty. Stop the application again with `Ctrl-C`; no file
-   cleanup is needed because M0 stores no runtime state on disk.
+   ```bash
+   rm -r -- "$M0_DATA_DIR"
+   ```
 
 Approval response: `Gate M0: PASS`, or use the failure template.
 
-## M1 — SQLite persistence
+## M1 — SQLite persistence `[SC-DB-009]`
 
 Purpose: confirm state survives restart and database operations preserve domain
 invariants.
 
-1. Start with a new documented temporary data directory.
-2. Add three Items to `Next`, arrange them as `C, A, B`, and save nonzero
-   playback progress for `A`.
-3. Stop and restart with the same data directory.
+1. Create a uniquely named temporary data directory:
+
+   ```bash
+   M1_DATA_DIR="$(mktemp -d /tmp/listenqueue-m1-XXXXXX)"
+   printf '%s\n' "$M1_DATA_DIR"
+   ```
+
+   Keep the printed path. The acceptance tool will only clean a directory that
+   contains its own marker file.
+
+2. Seed three fixture Items, explicitly add them to `Next`, arrange them as
+   `C, A, B`, and save progress for `A`:
+
+   ```bash
+   racket tools/m1-acceptance.rkt seed "$M1_DATA_DIR"
+   ```
+
+   Expected:
+
+   ```text
+   Items: 3
+   Next: Episode 40 -> Episode 42 -> Episode 41
+   Episode 42 progress: 37.5
+   Episode 41 seen: active
+   ```
+
+3. Open a new connection to the same directory:
+
+   ```bash
+   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
+   ```
 
    Expected: Items, order `C, A, B`, and progress for `A` are unchanged.
 
-4. Remove `A` from `Next` and restart again.
+4. Remove `A` from `Next`, then inspect through another new connection:
 
-   Expected: `A` is absent from `Next`, but its playback history remains.
+   ```bash
+   racket tools/m1-acceptance.rkt remove-a "$M1_DATA_DIR"
+   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
+   ```
 
-5. Use the documented tombstone inspection harness to delete a test Item.
+   Expected: `Next` is `Episode 40 -> Episode 41`, while Episode 42 progress is
+   still `37.5`.
 
-   Expected: the Item is gone and its seen/deleted record remains.
+5. Delete `B`, retry its upstream entry through a new connection, and inspect:
 
-6. Stop the service and remove only the documented temporary data directory.
+   ```bash
+   racket tools/m1-acceptance.rkt delete-b "$M1_DATA_DIR"
+   racket tools/m1-acceptance.rkt retry-b "$M1_DATA_DIR"
+   racket tools/m1-acceptance.rkt inspect "$M1_DATA_DIR"
+   ```
+
+   Expected: `Reinserted: 0`, `Items: 2`, `Next: Episode 40`, and
+   `Episode 41 seen: deleted`.
+
+6. Remove only the marked acceptance directory:
+
+   ```bash
+   racket tools/m1-acceptance.rkt cleanup "$M1_DATA_DIR"
+   ```
+
+   Expected: `Acceptance data removed.`
 
 Approval response: `Gate M1: PASS`, or use the failure template.
 
