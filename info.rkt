@@ -3,6 +3,7 @@
 (define collection 'multi)
 (define deps '("base"
                "db-lib"
+               "draw-lib"
                "net-lib"
                "xml-lib"
                "web-server-lib"))

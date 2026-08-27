@@ -166,7 +166,23 @@ racket tools/m1-acceptance.rkt
 The script creates its own isolated temporary database, closes and reopens it
 between checks, verifies queue order and playback progress, removes one Item
 from `Next`, deletes another Item, retries that upstream Item, and cleans the
-temporary directory even if a check fails.
+temporary database even if a check fails. It retains a separate evidence
+directory containing these screenshots:
+
+```text
+01-restart-and-order.png
+02-queue-removal-and-progress.png
+03-deletion-and-tombstone.png
+```
+
+It also creates `index.html`, which displays all three screenshots together.
+Open the printed review-page path in a browser and review every image. Each
+image must show the candidate hash, the relevant requirements, actual observed
+state, and a green `PASS` badge. The images respectively demonstrate:
+
+1. manual `Next` order, Items, and playback progress survived a new connection;
+2. removing Episode 42 from `Next` retained its 37.5-second progress;
+3. deleting Episode 41 left it tombstoned and an upstream retry inserted zero.
 
 Expected final output:
 
@@ -175,13 +191,27 @@ Restart and order: PASS
 Queue removal and progress: PASS
 Deletion and tombstone: PASS
 Cleanup: PASS
+Screenshots: <absolute evidence directory>
+Review page: <absolute path to index.html>
 Gate: M1
   Result: PASS
 ```
 
 Any failed check exits nonzero and does not print `Gate: M1 ... PASS`.
+Do not approve the human gate until all three retained screenshots have been
+visually reviewed; terminal `PASS` output alone is insufficient.
 
-Approval response: `Gate M1: PASS`, or use the failure template.
+Approval response:
+
+```text
+Gate: M1
+  Candidate: <tested commit>
+  Evidence: <printed evidence directory>
+  Screenshots-reviewed: 3/3
+  Result: PASS
+```
+
+Use the failure template if any screenshot or observed state is wrong.
 
 ## M2 — Podcast subscriptions
 

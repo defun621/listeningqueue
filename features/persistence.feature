@@ -95,15 +95,17 @@ Feature: Persist listening state in SQLite
     And the Item can still be loaded through a new connection
 
   @SC-DB-015 @DB-009 @automated
-  Scenario: The M1 human gate is one self-contained script
+  Scenario: The M1 human gate produces reviewable screenshots
     Given the M1 acceptance script
-    When it is run once without setup arguments
+    When it is run once with an evidence directory
     Then it checks restart, order, progress, deletion, and non-resurrection
-    And it cleans its temporary data and reports Gate M1 PASS
+    And it writes one PNG screenshot for each checked feature
+    And it cleans its temporary database and reports Gate M1 PASS
 
   @SC-DB-009 @DB-002 @DB-003 @DB-004 @DB-006 @DB-008 @manual
   Scenario: A human observes durable order, progress, and tombstones
     Given the documented self-contained M1 acceptance script
     When the user runs the script once against the candidate revision
-    Then the script visibly checks durable order, progress, and tombstones
-    And it cleans its temporary data and reports Gate M1 PASS
+    Then the reviewer can inspect separate screenshots for durable order,
+      progress after queue removal, and deletion tombstones
+    And the script cleans its temporary database and reports Gate M1 PASS
