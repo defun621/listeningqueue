@@ -12,7 +12,8 @@
          "../extension/rss.rkt"
          "../media/podcast.rkt"
          "../media/resolver.rkt"
-         "../persistence/store.rkt")
+         "../persistence/store.rkt"
+         "../runtime/subscriptions.rkt")
 
 (provide application
          make-application
@@ -71,12 +72,12 @@
      (body
       (main
        (h1 "ListenQueue")
-       (p "Add a public podcast RSS feed. New episodes appear in Next.")
+       (p "Subscribe to a public podcast RSS or Atom feed. Discovered episodes stay out of Next until you select them.")
        ,@(if error-message
              `((p ((role "alert")) ,error-message))
              '())
        (form ((method "post") (action "/feeds"))
-             (label ((for "feed-url")) "Podcast RSS URL")
+             (label ((for "feed-url")) "Podcast RSS or Atom URL")
              (input ((id "feed-url")
                      (name "feed-url")
                      (type "url")
@@ -112,8 +113,9 @@
             ([value (in-list (store-items-in-next persistent-store))])
     (library-add-to-next result (item-id value))))
 
-(define (make-application #:load-feed [load-feed load-podcast-feed]
-                          #:store [persistent-store #f])
+(define (make-application #:load-feed [load-feed #f]
+                          #:store [persistent-store #f]
+                          #:subscribe-feed [subscribe-feed #f])
   (define current-library (box empty-library))
   (define (current-state)
     (if persistent-store
@@ -124,6 +126,12 @@
         (store-ingest-items! persistent-store items)
         (set-box! current-library
                   (library-ingest-items (unbox current-library) items))))
+  (define (add-feed! url)
+    (cond
+      [subscribe-feed (subscribe-feed url)]
+      [(and persistent-store load-feed) (ingest! (load-feed url))]
+      [persistent-store (subscribe-podcast! persistent-store url)]
+      [else (ingest! ((or load-feed load-podcast-feed) url))]))
   (define (add-to-next! id)
     (if persistent-store
         (store-next-add-last! persistent-store id)
@@ -150,7 +158,7 @@
            (string-trim
             (extract-binding/single 'feed-url
                                     (request-bindings request))))
-         (ingest! (load-feed feed-url))
+         (add-feed! feed-url)
          (redirect-to "/" see-other))]
       [(and (request-method-is? request #"POST")
             (equal? path '("next")))

@@ -10,9 +10,9 @@ the user's existing queue order.
 ListenQueue is in the design and early implementation phase. The target is a
 v0.1 Racket application backed by SQLite and deployable as a single container.
 
-## Planned features
+## Features and roadmap
 
-- Podcast RSS/Atom subscriptions
+- Durable Podcast RSS/Atom subscriptions with fixed-interval refresh
 - YouTube, Bilibili, and other video sources through `yt-dlp`
 - Periodic source refresh and deduplication
 - Admission, initial-placement, and retention policies
@@ -78,10 +78,12 @@ The database is created as `listenqueue.sqlite3` under that directory. Without
 the environment variable, ListenQueue uses the platform's Racket preferences
 directory.
 
-The current slice supports one-shot public HTTP(S) RSS 2.0 loading, direct
-podcast enclosures, and durable core listening state. Subscriptions and refresh
-scheduling arrive in later milestones. The BBC test feed is a live third-party
-resource and may change independently of ListenQueue.
+Submitting a public HTTP(S) RSS or Atom feed creates a durable subscription.
+The first pull happens immediately and the runtime refreshes it every hour by
+default. Reopening or submitting the same normalized locator does not create a
+second subscription. Newly discovered episodes remain outside `Next` until you
+select them. The BBC test feed is a live third-party resource and may change
+independently of ListenQueue.
 
 Milestones require explicit human sign-off after automated checks. See the
 [manual acceptance runbook](docs/manual-acceptance.md).

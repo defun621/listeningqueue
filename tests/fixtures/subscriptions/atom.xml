@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Fixture Atom Podcast</title>
+  <entry>
+    <id>tag:example.com,2026:atom-1</id>
+    <title>Atom Episode 1</title>
+    <summary>Atom episode description</summary>
+    <published>2026-08-26T12:00:00Z</published>
+    <link rel="alternate" href="https://podcast.example/atom-1" />
+    <link rel="enclosure" href="https://media.example/atom-1.ogg" type="audio/ogg" length="321" />
+  </entry>
+</feed>

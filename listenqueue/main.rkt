@@ -2,8 +2,11 @@
 
 (require web-server/servlet-env
          "config.rkt"
+         "domain/source.rkt"
          "extension/rss.rkt"
          "persistence/store.rkt"
+         "runtime/subscriptions.rkt"
+         "scheduler/source-scheduler.rkt"
          "web/app.rkt")
 
 (provide start
@@ -13,12 +16,39 @@
 (define (call-with-runtime-application
          config
          action
-         #:load-feed [load-feed load-podcast-feed])
+         #:load-feed [load-feed #f]
+         #:pull-source [pull-source pull-podcast-source]
+         #:scheduler-poll-seconds [scheduler-poll-seconds 10]
+         #:now [now current-seconds])
   (call-with-store
    (app-config-data-directory config)
    (lambda (persistent-store)
-     (action (make-application #:store persistent-store
-                               #:load-feed load-feed)))))
+     (define scheduler
+       (make-source-scheduler persistent-store pull-source #:now now))
+     (define runner
+       (start-source-scheduler!
+        scheduler
+        #:poll-seconds scheduler-poll-seconds))
+     (define (subscribe locator)
+       (subscribe-podcast!
+        persistent-store
+        locator
+        #:now (now)
+        #:pull
+        (if load-feed
+            (lambda (value)
+              (pull-result (load-feed locator)
+                           (source-state value)
+                           'modified))
+            pull-source)))
+     (define app
+       (make-application #:store persistent-store
+                         #:load-feed (or load-feed load-podcast-feed)
+                         #:subscribe-feed subscribe))
+     (dynamic-wind
+       void
+       (lambda () (action app))
+       (lambda () (stop-source-scheduler! runner))))))
 
 (define (start [config default-app-config])
   (call-with-runtime-application

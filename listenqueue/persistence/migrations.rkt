@@ -10,7 +10,7 @@
 (struct exn:fail:migration exn:fail (kind)
   #:transparent)
 
-(define current-schema-version 1)
+(define current-schema-version 2)
 
 (define (raise-migration kind format-string . values)
   (raise
@@ -74,8 +74,42 @@
       updated_at INTEGER NOT NULL
     )"))
 
+(define (apply-version-2! connection)
+  (query-exec
+   connection
+   "ALTER TABLE sources
+      ADD COLUMN locator TEXT NOT NULL DEFAULT ''")
+  (query-exec
+   connection
+   "ALTER TABLE sources
+      ADD COLUMN refresh_interval_seconds INTEGER NOT NULL DEFAULT 3600
+      CHECK (refresh_interval_seconds >= 60)")
+  (query-exec
+   connection
+   "ALTER TABLE sources
+      ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1
+      CHECK (enabled IN (0, 1))")
+  (query-exec
+   connection
+   "ALTER TABLE sources
+      ADD COLUMN next_due_at INTEGER NOT NULL DEFAULT 0")
+  (query-exec
+   connection
+   "ALTER TABLE sources ADD COLUMN last_attempt_at INTEGER")
+  (query-exec
+   connection
+   "ALTER TABLE sources ADD COLUMN last_success_at INTEGER")
+  (query-exec
+   connection
+   "ALTER TABLE sources ADD COLUMN last_error TEXT")
+  (query-exec
+   connection
+   "CREATE UNIQUE INDEX sources_kind_locator
+      ON sources(kind, locator)"))
+
 (define migrations
-  (hash 1 apply-version-1!))
+  (hash 1 apply-version-1!
+        2 apply-version-2!))
 
 (define (migrate! connection)
   (call-with-transaction

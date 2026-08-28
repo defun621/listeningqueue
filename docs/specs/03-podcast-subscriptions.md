@@ -121,6 +121,30 @@ The v0.1 scheduler may be an in-process loop driven by an injectable clock. It
 must support clean shutdown and must not start merely because its module is
 required by tests or the REPL.
 
+## M2 implementation decisions
+
+- RSS Source IDs use the normalized feed locator. This preserves the Item
+  identity established by the earlier one-shot feed form when that feed becomes
+  a subscription.
+- Adding a subscription performs its first pull before persistence. A failed
+  validation or first pull leaves no Source, Item, or seen row.
+- Refresh intervals are integer seconds with a minimum of 60 seconds. The Web
+  form uses 3600 seconds until interval controls arrive with broader subscription
+  management UI.
+- Schema migration 2 adds locator, interval, enabled, due-time, attempt,
+  success, and error fields to the M1 `sources` table. M1 Items are untouched.
+- A successful pull writes Items, seen history, opaque extension state, success
+  time, and next due time in one transaction. Discovery never changes `Next`.
+- A failed pull records its attempt and a contextual error, and schedules the
+  next fixed-interval attempt to prevent a tight retry loop. It does not change
+  the last-success time or extension-owned state.
+- The RSS extension owns ETag and Last-Modified values and supports practical
+  Atom entries with enclosure links. The scheduler never interprets that state.
+- Each scheduler tick starts independent threads for due Sources. An in-memory
+  per-Source claim prevents overlap; requiring the module starts no thread.
+- The application lifecycle polls every 10 seconds by default and cleanly stops
+  its scheduler thread when the Web runtime exits.
+
 ## Testing
 
 - RSS and Atom fixtures
@@ -131,6 +155,7 @@ required by tests or the REPL.
 - Two different sources making progress independently
 - Attempted overlapping pulls of the same source
 - Failure before and after candidate state is produced
+- Migration from the accepted M1 schema without losing Items
 - Restart and safe retry
 - Injectable-clock interval tests without real sleeping
 

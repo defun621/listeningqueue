@@ -5,16 +5,27 @@
          racket/port
          racket/string
          xml
-         "../domain/item.rkt")
+         "../domain/item.rkt"
+         (prefix-in domain: "../domain/source.rkt"))
 
 (provide (struct-out podcast-media-ref)
+         (struct-out rss-state)
+         (struct-out feed-http-response)
          (struct-out exn:fail:feed)
          feed-bytes->items
+         response-header-text->validators
          fetch-feed
-         load-podcast-feed)
+         load-podcast-feed
+         pull-podcast-source)
 
 (struct podcast-media-ref (uri mime-type length)
   #:prefab)
+
+(struct rss-state (etag last-modified)
+  #:prefab)
+
+(struct feed-http-response (status headers body)
+  #:transparent)
 
 (struct exn:fail:feed exn:fail (kind)
   #:transparent)
@@ -111,19 +122,59 @@
                                   (attribute enclosure 'length))
                (hash)))))
 
+(define (child-link element relation)
+  (findf (lambda (child)
+           (and (xexpr-element? child)
+                (eq? (car child) 'link)
+                (equal? (or (attribute child 'rel) "alternate") relation)))
+         (cddr element)))
+
+(define (atom-entry->item element source-id)
+  (define enclosure (child-link element "enclosure"))
+  (define enclosure-uri (and enclosure (attribute enclosure 'href)))
+  (define external-id (or (child-text element 'id) enclosure-uri))
+  (define alternate (child-link element "alternate"))
+  (and external-id
+       (http-url? enclosure-uri)
+       (item (source-item-id source-id external-id)
+             source-id
+             external-id
+             (or (child-text element 'title) external-id)
+             (or (child-text element 'summary)
+                 (child-text element 'content))
+             (or (child-text element 'published)
+                 (child-text element 'updated))
+             #f
+             (and alternate (attribute alternate 'href))
+             (podcast-media-ref enclosure-uri
+                                (or (attribute enclosure 'type)
+                                    "application/octet-stream")
+                                (attribute enclosure 'length))
+             (hash))))
+
 (define (feed-xexpr->items root source-id)
-  (unless (and (xexpr-element? root) (eq? (car root) 'rss))
-    (raise-feed 'malformed-feed "expected an RSS document"))
-  (define channel (first-child root 'channel))
-  (unless channel
-    (raise-feed 'malformed-feed "RSS document has no channel"))
+  (unless (xexpr-element? root)
+    (raise-feed 'malformed-feed "expected an RSS or Atom document"))
   (define items
-    (filter values
-            (map (lambda (element) (item-element->item element source-id))
-                 (element-children channel 'item))))
+    (case (car root)
+      [(rss)
+       (define channel (first-child root 'channel))
+       (unless channel
+         (raise-feed 'malformed-feed "RSS document has no channel"))
+       (filter values
+               (map (lambda (element)
+                      (item-element->item element source-id))
+                    (element-children channel 'item)))]
+      [(feed)
+       (filter values
+               (map (lambda (element)
+                      (atom-entry->item element source-id))
+                    (element-children root 'entry)))]
+      [else
+       (raise-feed 'malformed-feed "expected an RSS or Atom document")]))
   (when (null? items)
     (raise-feed 'no-playable-episodes
-                "RSS feed contains no identified episodes with an HTTP(S) enclosure"))
+                "feed contains no identified episodes with an HTTP(S) enclosure"))
   items)
 
 (define (feed-bytes->items bytes source-id)
@@ -133,7 +184,7 @@
                   [exn:fail?
                    (lambda (error)
                      (raise-feed 'malformed-feed
-                                 "could not parse RSS: ~a"
+                                 "could not parse podcast feed: ~a"
                                  (exn-message error)))])
     (define document
       (call-with-input-bytes bytes read-xml))
@@ -209,3 +260,125 @@
 
 (define (load-podcast-feed url #:request [request default-request])
   (feed-bytes->items (fetch-feed url #:request request) url))
+
+(define (header-from-text headers name)
+  (define prefix (string-append (string-downcase name) ":"))
+  (for/first ([line (in-list (string-split headers "\n"))]
+              #:do [(define trimmed (string-trim line))]
+              #:when (string-prefix? (string-downcase trimmed) prefix))
+    (string-trim (substring trimmed (string-length prefix)))))
+
+(define (response-header-text->validators headers)
+  (unless (string? headers)
+    (raise-argument-error 'response-header-text->validators "string?" headers))
+  (for/hash ([name (in-list '("ETag" "Last-Modified"))]
+             #:do [(define value (header-from-text headers name))]
+             #:when value)
+    (values (string-downcase name) value)))
+
+(define (request-header-lines headers)
+  (for/list ([(name value) (in-hash headers)])
+    (format "~a: ~a" name value)))
+
+(define (open-feed-response url request-headers)
+  (define-values (input raw-headers)
+    (get-pure-port/headers (string->url url)
+                           (request-header-lines request-headers)
+                           #:redirections 5
+                           #:status? #t))
+  (define matched
+    (regexp-match #px"^HTTP/[^ ]+ ([0-9]{3})" raw-headers))
+  (define status (if matched (string->number (cadr matched)) 0))
+  (dynamic-wind
+    void
+    (lambda ()
+      (feed-http-response
+       status
+       (response-header-text->validators raw-headers)
+       (if (= status 304)
+           #""
+           (read-bounded input default-max-feed-bytes))))
+    (lambda () (close-input-port input))))
+
+(define (default-subscription-request url request-headers)
+  (define worker-custodian (make-custodian))
+  (define result-channel (make-channel))
+  (parameterize ([current-custodian worker-custodian])
+    (thread
+     (lambda ()
+       (with-handlers ([exn?
+                        (lambda (error)
+                          (channel-put result-channel (cons 'error error)))])
+         (channel-put result-channel
+                      (cons 'ok
+                            (open-feed-response url request-headers)))))))
+  (define result
+    (sync/timeout default-timeout-seconds result-channel))
+  (custodian-shutdown-all worker-custodian)
+  (unless result
+    (raise-feed 'feed-timeout
+                "feed request exceeded ~a seconds"
+                default-timeout-seconds))
+  (if (eq? (car result) 'ok)
+      (cdr result)
+      (let ([error (cdr result)])
+        (if (exn:fail:feed? error)
+            (raise error)
+            (raise-feed 'network-error
+                        "conditional feed request failed: ~a"
+                        (exn-message error))))))
+
+(define (response-header headers name)
+  (for/first ([(key value) (in-hash headers)]
+              #:when (string-ci=? key name))
+    value))
+
+(define (conditional-headers state)
+  (for/fold ([headers (hash)])
+            ([entry (in-list
+                     (list (cons "if-none-match"
+                                 (and state (rss-state-etag state)))
+                           (cons "if-modified-since"
+                                 (and state
+                                      (rss-state-last-modified state)))))]
+             #:when (cdr entry))
+    (hash-set headers (car entry) (cdr entry))))
+
+(define (pull-podcast-source value
+                             #:request [request default-subscription-request])
+  (unless (domain:source? value)
+    (raise-argument-error 'pull-podcast-source "source?" value))
+  (unless (eq? (domain:source-extension-id value) 'rss)
+    (raise-feed 'wrong-extension "Source is not owned by the RSS extension"))
+  (define previous-state
+    (cond
+      [(not (domain:source-state value)) #f]
+      [(rss-state? (domain:source-state value)) (domain:source-state value)]
+      [else
+       (raise-feed 'invalid-source-state
+                   "RSS Source state has an unsupported shape")]))
+  (define response
+    (request (domain:source-locator value) (conditional-headers previous-state)))
+  (unless (feed-http-response? response)
+    (raise-feed 'network-error "feed request returned an invalid response"))
+  (define status (feed-http-response-status response))
+  (define headers (feed-http-response-headers response))
+  (define etag (response-header headers "etag"))
+  (define modified (response-header headers "last-modified"))
+  (cond
+    [(= status 304)
+     (domain:pull-result
+      '()
+      (rss-state (or etag (and previous-state (rss-state-etag previous-state)))
+                 (or modified
+                     (and previous-state
+                          (rss-state-last-modified previous-state))))
+      'not-modified)]
+    [(<= 200 status 299)
+     (domain:pull-result
+      (feed-bytes->items (feed-http-response-body response)
+                         (domain:source-id value))
+      (rss-state etag modified)
+      'modified)]
+    [else
+     (raise-feed 'http-status "feed server returned HTTP ~a" status)]))

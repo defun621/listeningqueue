@@ -213,36 +213,82 @@ Gate: M1
 
 Use the failure template if any screenshot or observed state is wrong.
 
-## M2 — Podcast subscriptions
+## M2 — Podcast subscriptions `[SC-SUB-012]`
 
-Purpose: confirm polling, deduplication, disable behavior, and failure isolation.
+Purpose: confirm durable subscription, scheduling, deduplication, conditional
+HTTP, failure isolation, restart, and per-Source exclusion.
 
-Before this gate, implementation must provide a local controllable feed server
-with version A, version B containing one additional episode, and a failing
-endpoint.
+From the checked-out M2 candidate, run the complete acceptance script once:
 
-1. Start ListenQueue and the local feed acceptance server.
-2. Subscribe to version A with the shortest supported test interval.
+```bash
+racket tools/m2-acceptance.rkt
+```
 
-   Expected: its episode appears once.
+The script uses deterministic RSS fixtures, an injected clock, controlled
+failure/concurrency boundaries, and a temporary SQLite database. It deletes the
+database even on failure but retains this evidence directory:
 
-3. Switch to version B and wait for the documented interval.
+```text
+01-subscription-created.png
+02-atom-feed-supported.png
+03-scheduled-refresh.png
+04-discovery-keeps-next-empty.png
+05-conditional-http.png
+06-disabled-source-idle.png
+07-failure-isolation.png
+08-restart-retains-source.png
+09-source-exclusion.png
+index.html
+```
 
-   Expected: only the new episode is added.
+Open the printed `index.html` path and review all nine images. Every image must
+show the tested candidate hash, requirement IDs, actual observed state, and a
+green `PASS` badge. In order, they demonstrate:
 
-4. Enable the failing feed beside the healthy feed.
+1. one durable enabled subscription with two discoveries and empty `Next`;
+2. a practical Atom entry becomes one playable podcast Item;
+3. one due tick discovers exactly one new Item without real waiting;
+4. reordered/repeated discovery creates no duplicates and leaves `Next` empty;
+5. ETag and Last-Modified are sent and HTTP 304 returns no Items;
+6. a disabled due Source performs no pull and keeps its state unchanged;
+7. one Source fails without advancing its state or stopping another Source;
+8. configuration, ETag, success time, and due time survive a new connection;
+9. a second pull of an already-running Source is rejected.
 
-   Expected: one reports an error while the healthy source keeps refreshing.
+Expected terminal summary:
 
-5. Disable the healthy source, advance its feed, and wait one interval.
+```text
+Subscription created: PASS
+Atom feed supported: PASS
+Scheduled refresh: PASS
+Discovery keeps Next empty: PASS
+Conditional HTTP: PASS
+Disabled Source idle: PASS
+Failure isolation: PASS
+Restart retains Source: PASS
+Source exclusion: PASS
+Cleanup: PASS
+Screenshots: <absolute evidence directory>
+Review page: <absolute path to index.html>
+Screenshots-reviewed: 9 required
+Gate: M2
+  Result: PASS
+```
 
-   Expected: no pull or new Item occurs for the disabled source.
+Any failed check exits nonzero and does not print `Gate: M2 ... PASS`. Terminal
+PASS output alone is insufficient; do not approve until every image is reviewed.
 
-6. Restart during or immediately after a refresh.
+Approval response:
 
-   Expected: retry is safe and nothing is duplicated.
+```text
+Gate: M2
+  Candidate: <tested commit>
+  Evidence: <printed evidence directory>
+  Screenshots-reviewed: 9/9
+  Result: PASS
+```
 
-Approval response: `Gate M2: PASS`, or use the failure template.
+Use the failure template if any screenshot or observed state is wrong.
 
 ## M3 — yt-dlp sources
 

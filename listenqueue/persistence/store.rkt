@@ -6,17 +6,28 @@
          racket/match
          racket/port
          "../domain/item.rkt"
+         "../domain/source.rkt"
          "migrations.rkt")
 
 (provide store?
          store-database-path
          (struct-out playback-state)
+         (struct-out source-commit-result)
          (struct-out exn:fail:store)
          current-schema-version
          open-store
          close-store
          call-with-store
          store-schema-version
+         store-source-count
+         store-source-by-id
+         store-source-by-locator
+         store-all-sources
+         store-due-sources
+         store-create-source-with-items!
+         store-commit-source-pull!
+         store-record-source-failure!
+         store-set-source-enabled!
          store-ingest-items!
          store-all-items
          store-item-count
@@ -37,11 +48,15 @@
 (struct playback-state (position-seconds updated-at)
   #:transparent)
 
+(struct source-commit-result (source new-item-count)
+  #:transparent)
+
 (struct exn:fail:store exn:fail (kind operation)
   #:transparent)
 
 (define database-file-name "listenqueue.sqlite3")
 (define item-payload-version 1)
+(define source-state-payload-version 1)
 
 (define (raise-store kind operation format-string . values)
   (raise
@@ -89,6 +104,26 @@
                   'decode-item
                   "unsupported Item payload envelope: ~e"
                   (and (pair? other) (car other)))]))
+
+(define (encode-source-state value)
+  (call-with-output-bytes
+   (lambda (output)
+     (parameterize ([print-unreadable #f])
+       (write (list 'listenqueue-source-state
+                    source-state-payload-version
+                    value)
+              output)))))
+
+(define (decode-source-state payload)
+  (if (sql-null? payload)
+      #f
+      (match (call-with-input-bytes payload read)
+        [(list 'listenqueue-source-state 1 value) value]
+        [other
+         (raise-store 'unsupported-payload
+                      'decode-source-state
+                      "unsupported Source state payload envelope: ~e"
+                      (and (pair? other) (car other)))])))
 
 (define (open-store data-directory)
   (unless (path-string? data-directory)
@@ -174,59 +209,61 @@
       external-id))
    (and result (string->symbol result))))
 
+(define (ingest-item/connection! connection value)
+  (define source-id (item-source-id value))
+  (define external-id (item-external-id value))
+  (define disposition
+    (query-maybe-value
+     connection
+     "SELECT disposition FROM seen_items
+      WHERE source_id = ? AND external_id = ?"
+     source-id
+     external-id))
+  (cond
+    [(equal? disposition "deleted") #f]
+    [else
+     (define now (current-seconds))
+     (unless disposition
+       (query-exec
+        connection
+        "INSERT INTO seen_items
+           (source_id, external_id, first_seen_at, disposition)
+         VALUES (?, ?, ?, 'active')"
+        source-id
+        external-id
+        now))
+     ;; Encoding intentionally happens after the seen write so a codec
+     ;; failure exercises transaction rollback.
+     (define payload (encode-item value))
+     (define existing-id
+       (query-maybe-value
+        connection
+        "SELECT id FROM items WHERE source_id = ? AND external_id = ?"
+        source-id
+        external-id))
+     (if existing-id
+         (begin
+           (query-exec
+            connection
+            "UPDATE items
+             SET payload_version = ?, payload = ?, updated_at = ?
+             WHERE id = ?"
+            item-payload-version payload now existing-id)
+           #f)
+         (begin
+           (query-exec
+            connection
+            "INSERT INTO items
+               (source_id, external_id, payload_version, payload,
+                created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)"
+            source-id external-id item-payload-version payload now now)
+           #t))]))
+
 (define (ingest-item! connection value)
   (call-with-transaction
    connection
-   (lambda ()
-     (define source-id (item-source-id value))
-     (define external-id (item-external-id value))
-     (define disposition
-       (query-maybe-value
-        connection
-        "SELECT disposition FROM seen_items
-         WHERE source_id = ? AND external_id = ?"
-        source-id
-        external-id))
-     (cond
-       [(equal? disposition "deleted") #f]
-       [else
-        (define now (current-seconds))
-        (unless disposition
-          (query-exec
-           connection
-           "INSERT INTO seen_items
-              (source_id, external_id, first_seen_at, disposition)
-            VALUES (?, ?, ?, 'active')"
-           source-id
-           external-id
-           now))
-        ;; Encoding intentionally happens after the seen write so a codec
-        ;; failure exercises transaction rollback.
-        (define payload (encode-item value))
-        (define existing-id
-          (query-maybe-value
-           connection
-           "SELECT id FROM items WHERE source_id = ? AND external_id = ?"
-           source-id
-           external-id))
-        (if existing-id
-            (begin
-              (query-exec
-               connection
-               "UPDATE items
-                SET payload_version = ?, payload = ?, updated_at = ?
-                WHERE id = ?"
-               item-payload-version payload now existing-id)
-              #f)
-            (begin
-              (query-exec
-               connection
-               "INSERT INTO items
-                  (source_id, external_id, payload_version, payload,
-                   created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)"
-               source-id external-id item-payload-version payload now now)
-              #t))]))))
+   (lambda () (ingest-item/connection! connection value))))
 
 (define (store-ingest-items! value incoming)
   (with-store-operation
@@ -417,3 +454,196 @@
                   "DELETE FROM items WHERE source_id = ? AND external_id = ?"
                   source-id
                   external-id)))))
+
+(define source-columns
+  "id, kind, locator, refresh_interval_seconds, state, enabled,
+   next_due_at, last_attempt_at, last_success_at, last_error")
+
+(define (sql-value->maybe value)
+  (and (not (sql-null? value)) value))
+
+(define (row->source row)
+  (make-source
+   #:id (vector-ref row 0)
+   #:extension-id (string->symbol (vector-ref row 1))
+   #:locator (vector-ref row 2)
+   #:refresh-interval-seconds (vector-ref row 3)
+   #:state (decode-source-state (vector-ref row 4))
+   #:enabled? (not (zero? (vector-ref row 5)))
+   #:next-due-at (vector-ref row 6)
+   #:last-attempt-at (sql-value->maybe (vector-ref row 7))
+   #:last-success-at (sql-value->maybe (vector-ref row 8))
+   #:last-error (sql-value->maybe (vector-ref row 9))))
+
+(define (source-by-id/connection connection id)
+  (define row
+    (query-maybe-row
+     connection
+     (string-append "SELECT " source-columns " FROM sources WHERE id = ?")
+     id))
+  (and row (row->source row)))
+
+(define (store-source-count value)
+  (with-store-operation
+   'store-source-count
+   (query-value (connection-of 'store-source-count value)
+                "SELECT COUNT(*) FROM sources")))
+
+(define (store-source-by-id value id)
+  (with-store-operation
+   'store-source-by-id
+   (source-by-id/connection (connection-of 'store-source-by-id value) id)))
+
+(define (store-source-by-locator value extension-id locator)
+  (with-store-operation
+   'store-source-by-locator
+   (define row
+     (query-maybe-row
+      (connection-of 'store-source-by-locator value)
+      (string-append
+       "SELECT " source-columns " FROM sources WHERE kind = ? AND locator = ?")
+      (symbol->string extension-id)
+      locator))
+   (and row (row->source row))))
+
+(define (store-all-sources value)
+  (with-store-operation
+   'store-all-sources
+   (map row->source
+        (query-rows
+         (connection-of 'store-all-sources value)
+         (string-append "SELECT " source-columns " FROM sources ORDER BY id")))))
+
+(define (store-due-sources value now)
+  (unless (exact-nonnegative-integer? now)
+    (raise-argument-error 'store-due-sources
+                          "exact-nonnegative-integer?"
+                          now))
+  (with-store-operation
+   'store-due-sources
+   (map row->source
+        (query-rows
+         (connection-of 'store-due-sources value)
+         (string-append
+          "SELECT " source-columns
+          " FROM sources
+            WHERE enabled = 1 AND next_due_at <= ?
+            ORDER BY next_due_at, id")
+         now))))
+
+(define (store-create-source-with-items! value candidate items next-state completed-at)
+  (with-store-operation
+   'store-create-source-with-items!
+   (define connection
+     (connection-of 'store-create-source-with-items! value))
+   (call-with-transaction
+    connection
+    (lambda ()
+      (when (source-by-id/connection connection (source-id candidate))
+        (raise-store 'duplicate-source
+                     'store-create-source-with-items!
+                     "Source already exists: ~a"
+                     (source-id candidate)))
+      (define state-payload (encode-source-state next-state))
+      (query-exec
+       connection
+       "INSERT INTO sources
+          (id, kind, state_version, state, created_at, updated_at,
+           locator, refresh_interval_seconds, enabled, next_due_at,
+           last_attempt_at, last_success_at, last_error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"
+       (source-id candidate)
+       (symbol->string (source-extension-id candidate))
+       source-state-payload-version
+       state-payload
+       completed-at
+       completed-at
+       (source-locator candidate)
+       (source-refresh-interval-seconds candidate)
+       (if (source-enabled? candidate) 1 0)
+       (+ completed-at (source-refresh-interval-seconds candidate))
+       completed-at
+       completed-at)
+      (define inserted
+        (for/sum ([item (in-list items)])
+          (if (ingest-item/connection! connection item) 1 0)))
+      (source-commit-result
+       (source-by-id/connection connection (source-id candidate))
+       inserted)))))
+
+(define (store-commit-source-pull! value source-id items next-state completed-at)
+  (with-store-operation
+   'store-commit-source-pull!
+   (define connection (connection-of 'store-commit-source-pull! value))
+   (call-with-transaction
+    connection
+    (lambda ()
+      (define present (source-by-id/connection connection source-id))
+      (unless present
+        (raise-store 'unknown-source
+                     'store-commit-source-pull!
+                     "Source is not stored: ~a"
+                     source-id))
+      (define inserted
+        (for/sum ([item (in-list items)])
+          (if (ingest-item/connection! connection item) 1 0)))
+      ;; State encoding intentionally follows Item writes so an unsupported
+      ;; provider state proves that the whole pull transaction rolls back.
+      (define state-payload (encode-source-state next-state))
+      (query-exec
+       connection
+       "UPDATE sources
+        SET state_version = ?, state = ?, updated_at = ?,
+            next_due_at = ?, last_attempt_at = ?, last_success_at = ?,
+            last_error = NULL
+        WHERE id = ?"
+       source-state-payload-version
+       state-payload
+       completed-at
+       (+ completed-at (source-refresh-interval-seconds present))
+       completed-at
+       completed-at
+       source-id)
+      (source-commit-result
+       (source-by-id/connection connection source-id)
+       inserted)))))
+
+(define (store-record-source-failure! value source-id attempted-at message)
+  (with-store-operation
+   'store-record-source-failure!
+   (define connection
+     (connection-of 'store-record-source-failure! value))
+   (define present (source-by-id/connection connection source-id))
+   (unless present
+     (raise-store 'unknown-source
+                  'store-record-source-failure!
+                  "Source is not stored: ~a"
+                  source-id))
+   (query-exec
+    connection
+    "UPDATE sources
+     SET updated_at = ?, next_due_at = ?, last_attempt_at = ?, last_error = ?
+     WHERE id = ?"
+    attempted-at
+    (+ attempted-at (source-refresh-interval-seconds present))
+    attempted-at
+    message
+    source-id)
+   (source-by-id/connection connection source-id)))
+
+(define (store-set-source-enabled! value source-id enabled?)
+  (unless (boolean? enabled?)
+    (raise-argument-error 'store-set-source-enabled! "boolean?" enabled?))
+  (with-store-operation
+   'store-set-source-enabled!
+   (define connection (connection-of 'store-set-source-enabled! value))
+   (query-exec connection
+               "UPDATE sources SET enabled = ?, updated_at = ? WHERE id = ?"
+               (if enabled? 1 0)
+               (current-seconds)
+               source-id)
+   (or (source-by-id/connection connection source-id)
+       (raise-store 'unknown-source
+                    'store-set-source-enabled!
+                    "Source is not stored: ~a"
+                    source-id))))

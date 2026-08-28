@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Fixture Podcast</title>
+    <item>
+      <guid>episode-1</guid>
+      <title>Episode 1 revised</title>
+      <description>First episode metadata changed</description>
+      <pubDate>Mon, 24 Aug 2026 12:00:00 GMT</pubDate>
+      <enclosure url="https://media.example/episode-1.mp3" type="audio/mpeg" length="100" />
+    </item>
+    <item>
+      <guid>episode-3</guid>
+      <title>Episode 3</title>
+      <description>New third episode</description>
+      <pubDate>Wed, 26 Aug 2026 12:00:00 GMT</pubDate>
+      <enclosure url="https://media.example/episode-3.mp3" type="audio/mpeg" length="300" />
+    </item>
+    <item>
+      <guid>episode-2</guid>
+      <title>Episode 2</title>
+      <description>Second episode</description>
+      <pubDate>Tue, 25 Aug 2026 12:00:00 GMT</pubDate>
+      <enclosure url="https://media.example/episode-2.mp3" type="audio/mpeg" length="200" />
+    </item>
+  </channel>
+</rss>
