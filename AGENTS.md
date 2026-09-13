@@ -4,6 +4,12 @@ This file contains repository-wide guidance for coding agents and contributors.
 It applies to every file in this repository unless a more specific `AGENTS.md`
 exists in a subdirectory.
 
+## Strict Rules
+
+- Use short sentences under 15 words.
+- Never use complex academic jargon or flowery filler phrases.
+- Speak like a helpful peer, not a rigid lecturer.
+
 ## Project
 
 ListenQueue is a self-hosted listening inbox written primarily in Racket. It
