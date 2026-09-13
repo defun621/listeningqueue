@@ -41,6 +41,77 @@ Evidence: output, screenshot, or secret-free log excerpt
 On failure, turn the observation into a feature scenario and red harness before
 changing production code.
 
+## M0–M2 重新审查
+
+关联：`[SC-POD-005]`、`[SC-DB-009]`、`[SC-SUB-012]`。
+背景见 [审查记录](audits/2026-09-13-m0-m2.md)。
+本次修改了文字解析和持续调度。
+旧验收结果不能代替本次验收。
+
+1. 核对候选版本与工作区。
+
+   ```bash
+   git rev-parse HEAD
+   git status --short
+   ```
+
+   提交号应匹配候选版本。
+   工作区应为空。
+
+2. 运行确定性实验和完整测试。
+
+   ```bash
+   raco test tests/harness/milestone-audit-test.rkt
+   raco test -x .
+   ```
+
+   审查实验应有 10 项通过。
+   中文文字、事务恢复和跨轮调度均应通过。
+
+3. 生成状态证据。
+
+   ```bash
+   racket tools/m1-acceptance.rkt
+   racket tools/m2-acceptance.rkt
+   ```
+
+   两个脚本会输出各自的 `index.html` 路径。
+   分别检查三张和九张图片。
+   每张应显示正确提交号与实际状态。
+   图片是程序生成的证据卡，不是浏览器截图。
+   临时数据库会自动清理。
+   证据保留在被 Git 忽略的 `acceptance-evidence/`。
+
+4. 完成本文件的 M0 浏览器步骤。
+
+   使用新的临时数据目录。
+   确认发现不会自动入队。
+   手动添加一个节目，收听至少 30 秒。
+   按 M0 步骤关闭程序并清理目录。
+
+5. 报告结果。
+
+   ```text
+   Review: M0–M2 re-audit
+   Candidate: <完整提交号>
+   Environment: <系统、浏览器、Racket 版本>
+   Tests: PASS | FAIL
+   M0-audible: PASS | FAIL
+   M1-cards: 3/3
+   M2-cards: 9/9
+   Evidence: <两个证据目录>
+   Known-gaps-reviewed: yes | no
+   Result: PASS | FAIL
+   Notes: <问题或观察>
+   ```
+
+已知限制必须一起审阅。
+网页尚无进度恢复和完整播放错误提示。
+无效节目可能被静默跳过。
+历史残缺 GUID 不会自动合并。
+审查通过不代表这些缺口已经解决。
+收到明确确认后，才记录本次人工结果。
+
 ## SP-00 — Project foundation
 
 Purpose: confirm that a contributor can test and start the application and that

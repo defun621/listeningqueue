@@ -118,38 +118,77 @@
             #f)))
        (lambda () (release-source! scheduler id)))]))
 
-(define (refresh-due-sources! scheduler)
+(struct refresh-job (thread result))
+
+(define (start-due-refreshes scheduler #:skip-active? [skip-active? #f])
   (define now ((source-scheduler-now scheduler)))
   (define due (store-due-sources (source-scheduler-store scheduler) now))
-  (define results (make-channel))
-  (for ([value (in-list due)])
-    (thread
-     (lambda ()
-       (channel-put
-        results
-        (with-handlers ([exn:fail?
-                         (lambda (error)
-                           (refresh-outcome
-                            (source-id value)
-                            'failed
-                            0
-                            (format "scheduler boundary failed: ~a"
-                                    (exn-message error))))])
-          (refresh-source! scheduler value))))))
-  (for/list ([value (in-list due)])
-    (channel-get results)))
+  (for/list ([value (in-list due)]
+             #:unless
+             (and skip-active?
+                  (with-active-lock
+                   scheduler
+                   (lambda ()
+                     (hash-has-key? (source-scheduler-active scheduler)
+                                    (source-id value))))))
+    (define result (box #f))
+    (define worker
+      (thread
+       (lambda ()
+         ;; A completed pull must not wait for a collector before exiting.
+         (set-box!
+          result
+          (with-handlers ([exn:fail?
+                           (lambda (error)
+                             (refresh-outcome
+                              (source-id value)
+                              'failed
+                              0
+                              (format "scheduler boundary failed: ~a"
+                                      (exn-message error))))])
+            (refresh-source! scheduler value))))))
+    (refresh-job worker result)))
 
-(define (start-source-scheduler! scheduler #:poll-seconds [poll-seconds 10])
+(define (refresh-due-sources! scheduler)
+  (define jobs (start-due-refreshes scheduler))
+  (for/list ([job (in-list jobs)])
+    (thread-wait (refresh-job-thread job))
+    (unbox (refresh-job-result job))))
+
+(define (start-source-scheduler! scheduler
+                                 #:poll-seconds [poll-seconds 10]
+                                 #:poll-evt [poll-evt #f])
   (unless (and (real? poll-seconds) (> poll-seconds 0))
     (raise-argument-error 'start-source-scheduler! "positive real?" poll-seconds))
+  (unless (or (not poll-evt) (evt? poll-evt))
+    (raise-argument-error 'start-source-scheduler! "event or #f" poll-evt))
   (define stop-signal (make-semaphore 0))
   (define worker
     (thread
      (lambda ()
-       (let loop ()
-         (refresh-due-sources! scheduler)
-         (unless (sync/timeout poll-seconds stop-signal)
-           (loop))))))
+       (define pending '())
+       (dynamic-wind
+         void
+         (lambda ()
+           (let loop ()
+             ;; Polling continues while earlier Sources are still pulling.
+             (set! pending
+                   (append
+                    (filter (lambda (job)
+                              (not (thread-dead? (refresh-job-thread job))))
+                            pending)
+                    (start-due-refreshes scheduler #:skip-active? #t)))
+             (define stopped?
+               (if poll-evt
+                   (sync (handle-evt stop-signal (lambda (_) #t))
+                         (handle-evt poll-evt (lambda (_) #f)))
+                   (sync/timeout poll-seconds stop-signal)))
+             (unless stopped?
+               (loop))))
+         (lambda ()
+           ;; The store stays open until every owned pull has finished.
+           (for ([job (in-list pending)])
+             (thread-wait (refresh-job-thread job))))))))
   (scheduler-runner worker stop-signal))
 
 (define (stop-source-scheduler! runner)

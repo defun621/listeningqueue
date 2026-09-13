@@ -3,6 +3,23 @@ Feature: Persist listening state in SQLite
   M1 must preserve Items, seen history, explicit Next order, and playback
   progress across new database connections.
 
+  @SC-DB-016 @DB-003 @DB-004 @DB-006 @DB-007 @automated
+  Scenario: Pull retries preserve manual order and saved listening state
+    Given two stored episodes ordered B then A with A saved at 37.5 seconds
+    And a later pull updates A and discovers C
+    And that pull succeeds or fails during Item or Source state storage
+    When the store restarts and retries that pull
+    Then exactly three Items exist with the updated A
+    And Next remains B then A
+    And A retains its saved position
+
+  @SC-DB-017 @DB-003 @DB-008 @automated
+  Scenario: Deletion survives restart and changed upstream metadata
+    Given a stored episode deleted locally before restart
+    When the restarted store discovers its identity with changed metadata
+    Then the episode remains deleted and seen
+    And Next remains empty
+
   @SC-DB-001 @DB-001 @automated
   Scenario: A fresh data directory is migrated and can be reopened
     Given an empty temporary data directory

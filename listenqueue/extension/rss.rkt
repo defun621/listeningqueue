@@ -68,6 +68,8 @@
 (define (descendant-text value)
   (cond
     [(string? value) value]
+    ;; XML numeric references become code points in xexpr text nodes.
+    [(exact-nonnegative-integer? value) (string (integer->char value))]
     [(cdata? value)
      (define raw (cdata-string value))
      (if (and (string-prefix? raw "<![CDATA[")

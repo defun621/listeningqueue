@@ -142,6 +142,12 @@ required by tests or the REPL.
   Atom entries with enclosure links. The scheduler never interprets that state.
 - Each scheduler tick starts independent threads for due Sources. An in-memory
   per-Source claim prevents overlap; requiring the module starts no thread.
+- Polling continues while earlier pulls remain active.
+  A Source becoming due later must not wait for unrelated pulls.
+- `start-source-scheduler!` accepts an optional `#:poll-evt` for controlled tests.
+  That event replaces timed polling after the initial tick.
+  The production default remains timed polling.
+- Shutdown waits for owned pulls before the application closes its store.
 - The application lifecycle polls every 10 seconds by default and cleanly stops
   its scheduler thread when the Web runtime exits.
 

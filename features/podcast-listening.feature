@@ -3,6 +3,14 @@ Feature: Listen to a public podcast episode
   The first product slice must discover episodes from a public RSS feed, then
   put only episodes explicitly selected by the user into Next.
 
+  @SC-POD-018 @POD-001 @POD-002 @POD-003 @automated
+  Scenario: Equivalent XML text retains titles and episode identity
+    Given equivalent RSS episodes using literal, decimal, or hexadecimal text
+    When each episode is discovered
+    Then every title is "中文 A & B"
+    And every external ID is "episode-中"
+    And every description is "中文 A & B"
+
   @SC-POD-001 @POD-002 @POD-004 @automated
   Scenario: Loading the same GUID episode twice stores it without enqueuing it
     Given an RSS fixture with an episode GUID "episode-42" and an enclosure URL

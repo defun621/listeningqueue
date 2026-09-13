@@ -3,6 +3,23 @@ Feature: Durable podcast subscriptions refresh safely
   M2 turns one-shot feed loading into fixed-interval subscriptions while
   keeping discovery separate from explicit placement in Next.
 
+  @SC-SUB-014 @SUB-003 @SUB-004 @SUB-009 @automated
+  Scenario: A slow pull does not block a Source becoming due later
+    Given A is due at time 60 and B is due at time 120
+    And the running scheduler starts A at time 60
+    And A either finishes or stays held by a controlled pull
+    And polling uses a manually signaled event
+    When the injected clock advances to 120
+    Then B starts before the held A is released
+    And A has only one active pull
+
+  @SC-SUB-015 @SUB-008 @SUB-010 @automated
+  Scenario: Shutdown waits for an owned pull to finish
+    Given a running scheduler with one controlled unfinished pull
+    When shutdown is requested
+    Then shutdown waits until that pull is released
+    And the successful pull is stored before shutdown returns
+
   @SC-SUB-001 @SUB-001 @SUB-007 @SUB-010 @automated
   Scenario: Adding a podcast creates one durable discovery-only subscription
     Given a supported podcast feed and an empty persistent store

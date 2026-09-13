@@ -79,6 +79,9 @@ Malformed individual entries may be skipped with contextual diagnostics. A
 malformed feed must produce a clear source-level error instead of partial,
 unexplained output.
 
+Literal text and numeric XML references must produce identical text and identity.
+This applies to titles, descriptions, and GUIDs.
+
 ### POD-004 — Minimal Next semantics
 
 The in-memory queue must preserve insertion order and uniqueness. Adding the
